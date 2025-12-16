@@ -1,0 +1,319 @@
+<html>
+<head>
+<title>index.html</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #d5b778;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bababa;}
+.s3 { color: #6aab73;}
+.s4 { color: #56a8f5;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+index.html</font>
+</center></td></tr></table>
+<pre><span class="s0">&lt;!doctype </span><span class="s2">html</span><span class="s0">&gt;</span>
+<span class="s0">&lt;html </span><span class="s2">lang</span><span class="s3">=&quot;en&quot;</span><span class="s0">&gt;</span>
+<span class="s0">&lt;head&gt;</span>
+    <span class="s0">&lt;meta </span><span class="s2">charset</span><span class="s3">=&quot;utf-8&quot; </span><span class="s0">/&gt;</span>
+    <span class="s0">&lt;meta </span><span class="s2">name</span><span class="s3">=&quot;viewport&quot; </span><span class="s2">content</span><span class="s3">=&quot;width=device-width,initial-scale=1&quot; </span><span class="s0">/&gt;</span>
+    <span class="s0">&lt;title&gt;</span><span class="s1">Tag Game (800×800)</span><span class="s0">&lt;/title&gt;</span>
+    <span class="s0">&lt;style&gt;</span>
+        <span class="s1">html, body { height: 100%; margin: 0; }</span>
+        <span class="s1">body {</span>
+          <span class="s1">display: grid;</span>
+          <span class="s1">place-items: center;</span>
+          <span class="s1">background: #0b0b12;</span>
+          <span class="s1">font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;</span>
+          <span class="s1">color: #fff;</span>
+        <span class="s1">}</span>
+        <span class="s1">canvas {</span>
+          <span class="s1">width: 800px;</span>
+          <span class="s1">height: 800px;</span>
+          <span class="s1">image-rendering: pixelated;</span>
+          <span class="s1">border: 2px solid #f6e04a;</span>
+          <span class="s1">background: rgb(13, 7, 130);</span>
+          <span class="s1">outline: none;</span>
+        <span class="s1">}</span>
+        <span class="s1">.hint { margin-top: 10px; opacity: 0.8; font-size: 14px; }</span>
+        <span class="s1">.hint kbd { background: #1f2330; padding: 2px 6px; border-radius: 6px; border: 1px solid #3a3f52; }</span>
+    <span class="s0">&lt;/style&gt;</span>
+<span class="s0">&lt;/head&gt;</span>
+<span class="s0">&lt;body&gt;</span>
+<span class="s0">&lt;div&gt;</span>
+    <span class="s0">&lt;canvas </span><span class="s2">id</span><span class="s3">=&quot;game&quot; </span><span class="s2">width</span><span class="s3">=&quot;800&quot; </span><span class="s2">height</span><span class="s3">=&quot;800&quot; </span><span class="s2">tabindex</span><span class="s3">=&quot;0&quot; </span><span class="s2">aria-label</span><span class="s3">=&quot;Tag Game Canvas&quot;</span><span class="s0">&gt;&lt;/canvas&gt;</span>
+    <span class="s0">&lt;div </span><span class="s2">class</span><span class="s3">=&quot;hint&quot;</span><span class="s0">&gt;</span>
+        <span class="s1">Click the canvas to focus. P1: </span><span class="s0">&lt;kbd&gt;</span><span class="s1">W</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">A</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">S</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">D</span><span class="s0">&lt;/kbd&gt; </span><span class="s4">&amp;nbsp;</span><span class="s1">|</span><span class="s4">&amp;nbsp;</span>
+        <span class="s1">P2: </span><span class="s0">&lt;kbd&gt;</span><span class="s1">↑</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">←</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">↓</span><span class="s0">&lt;/kbd&gt;&lt;kbd&gt;</span><span class="s1">→</span><span class="s0">&lt;/kbd&gt;</span>
+    <span class="s0">&lt;/div&gt;</span>
+<span class="s0">&lt;/div&gt;</span>
+
+<span class="s0">&lt;script&gt;</span>
+    <span class="s1">(() =&gt; {</span>
+      <span class="s1">const canvas = document.getElementById(&quot;game&quot;);</span>
+      <span class="s1">const ctx = canvas.getContext(&quot;2d&quot;);</span>
+
+      <span class="s1">const w = 800, h = 800;</span>
+      <span class="s1">const boxWH = 20;</span>
+      <span class="s1">const SPEED = 8;</span>
+
+      <span class="s1">// Game state</span>
+      <span class="s1">let px = 0, py = 0;     // P2 (arrows)</span>
+      <span class="s1">let px2 = 0, py2 = 0;   // P1 (WASD)</span>
+      <span class="s1">let count = 0;          // swap tagger each round</span>
+      <span class="s1">let p1Score = 0, p2Score = 0;</span>
+
+      <span class="s1">const ROUND_TIME_TICKS = 1500; // 1500 * 20ms = 30s</span>
+      <span class="s1">let roundTicks = ROUND_TIME_TICKS;</span>
+
+      <span class="s1">// Inputs</span>
+      <span class="s1">const keys = {</span>
+        <span class="s1">left:false,right:false,up:false,down:false,</span>
+        <span class="s1">W:false,A:false,S:false,D:false</span>
+      <span class="s1">};</span>
+
+      <span class="s1">// Obstacles (same as your Java)</span>
+      <span class="s1">const obs = [</span>
+        <span class="s1">rect(160, 160, 280, 20),</span>
+        <span class="s1">rect(520, 160, 120, 20),</span>
+
+        <span class="s1">rect(160, 620, 120, 20),</span>
+        <span class="s1">rect(360, 620, 280, 20),</span>
+
+        <span class="s1">rect(160, 160, 20, 220),</span>
+        <span class="s1">rect(160, 460, 20, 180),</span>
+
+        <span class="s1">rect(620, 160, 20, 180),</span>
+        <span class="s1">rect(620, 460, 20, 180),</span>
+
+        <span class="s1">rect(360, 260, 30, 30),</span>
+        <span class="s1">rect(430, 260, 30, 30),</span>
+        <span class="s1">rect(360, 510, 30, 30),</span>
+        <span class="s1">rect(430, 510, 30, 30),</span>
+
+        <span class="s1">rect(90, 280, 60, 20),</span>
+        <span class="s1">rect(90, 500, 60, 20),</span>
+        <span class="s1">rect(650, 280, 60, 20),</span>
+        <span class="s1">rect(650, 500, 60, 20)</span>
+      <span class="s1">];</span>
+
+      <span class="s1">function rect(x,y,width,height){ return {x,y,width,height}; }</span>
+
+      <span class="s1">function resetPositionsOnly() {</span>
+        <span class="s1">px2 = 30; py2 = 30;</span>
+        <span class="s1">px  = w - 30 - (boxWH + 10);</span>
+        <span class="s1">py  = h - 30 - (boxWH + 10);</span>
+        <span class="s1">roundTicks = ROUND_TIME_TICKS;</span>
+      <span class="s1">}</span>
+
+      <span class="s1">function resetRound() {</span>
+        <span class="s1">resetPositionsOnly();</span>
+        <span class="s1">count++;</span>
+      <span class="s1">}</span>
+
+      <span class="s1">function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }</span>
+
+      <span class="s1">function intersects(a, b) {</span>
+        <span class="s1">return (a.x &lt; b.x + b.width &amp;&amp;</span>
+                <span class="s1">a.x + a.width &gt; b.x &amp;&amp;</span>
+                <span class="s1">a.y &lt; b.y + b.height &amp;&amp;</span>
+                <span class="s1">a.y + a.height &gt; b.y);</span>
+      <span class="s1">}</span>
+
+      <span class="s1">function grow(r, gx, gy) {</span>
+        <span class="s1">return {</span>
+          <span class="s1">x: r.x - gx,</span>
+          <span class="s1">y: r.y - gy,</span>
+          <span class="s1">width: r.width + gx*2,</span>
+          <span class="s1">height: r.height + gy*2</span>
+        <span class="s1">};</span>
+      <span class="s1">}</span>
+
+      <span class="s1">// Slide collision like your Java: test X then Y</span>
+      <span class="s1">function slideMove(x, y, vx, vy, size) {</span>
+        <span class="s1">const oldX = x, oldY = y;</span>
+
+        <span class="s1">// apply full move first</span>
+        <span class="s1">x += vx; y += vy;</span>
+
+        <span class="s1">// test X collision (keep oldY)</span>
+        <span class="s1">let testX = { x, y: oldY, width: size, height: size };</span>
+        <span class="s1">for (const r of obs) {</span>
+          <span class="s1">if (intersects(testX, r)) { x = oldX; break; }</span>
+        <span class="s1">}</span>
+
+        <span class="s1">// test Y collision (use current x)</span>
+        <span class="s1">let testY = { x, y, width: size, height: size };</span>
+        <span class="s1">for (const r of obs) {</span>
+          <span class="s1">if (intersects(testY, r)) { y = oldY; break; }</span>
+        <span class="s1">}</span>
+
+        <span class="s1">// clamp</span>
+        <span class="s1">x = clamp(x, 0, w - size);</span>
+        <span class="s1">y = clamp(y, 0, h - size);</span>
+
+        <span class="s1">return {x,y};</span>
+      <span class="s1">}</span>
+
+      <span class="s1">function update() {</span>
+        <span class="s1">const p1IsTagger = (count % 2 === 1);</span>
+
+        <span class="s1">const p2Size = (count % 2 === 0) ? (boxWH + 10) : boxWH;</span>
+        <span class="s1">const p1Size = (count % 2 === 0) ? boxWH : (boxWH + 10);</span>
+
+        <span class="s1">// fairness buffs</span>
+        <span class="s1">const tagSpeed = SPEED + 1;</span>
+        <span class="s1">const runSpeed = SPEED;</span>
+        <span class="s1">const p1Speed = p1IsTagger ? tagSpeed : runSpeed;</span>
+        <span class="s1">const p2Speed = p1IsTagger ? runSpeed : tagSpeed;</span>
+
+        <span class="s1">// velocities</span>
+        <span class="s1">let vX = 0, vY = 0;</span>
+        <span class="s1">if (keys.left)  vX = -p2Speed;</span>
+        <span class="s1">if (keys.right) vX =  p2Speed;</span>
+        <span class="s1">if (keys.up)    vY = -p2Speed;</span>
+        <span class="s1">if (keys.down)  vY =  p2Speed;</span>
+
+        <span class="s1">let vX2 = 0, vY2 = 0;</span>
+        <span class="s1">if (keys.A) vX2 = -p1Speed;</span>
+        <span class="s1">if (keys.D) vX2 =  p1Speed;</span>
+        <span class="s1">if (keys.W) vY2 = -p1Speed;</span>
+        <span class="s1">if (keys.S) vY2 =  p1Speed;</span>
+
+        <span class="s1">// move with sliding collision</span>
+        <span class="s1">({x:px,  y:py } = slideMove(px,  py,  vX,  vY,  p2Size));</span>
+        <span class="s1">({x:px2, y:py2} = slideMove(px2, py2, vX2, vY2, p1Size));</span>
+
+        <span class="s1">// hitboxes</span>
+        <span class="s1">const p1HB = { x:px2, y:py2, width:p1Size, height:p1Size };</span>
+        <span class="s1">const p2HB = { x:px,  y:py,  width:p2Size, height:p2Size };</span>
+
+        <span class="s1">// timer</span>
+        <span class="s1">if (roundTicks &gt; 0) roundTicks--;</span>
+
+        <span class="s1">// tag reach buff</span>
+        <span class="s1">let tagHB1 = {...p1HB};</span>
+        <span class="s1">let tagHB2 = {...p2HB};</span>
+        <span class="s1">if (p1IsTagger) tagHB1 = grow(tagHB1, 4, 4);</span>
+        <span class="s1">else           tagHB2 = grow(tagHB2, 4, 4);</span>
+
+        <span class="s1">// win conditions</span>
+        <span class="s1">if (intersects(tagHB1, tagHB2)) {</span>
+          <span class="s1">if (p1IsTagger) p1Score++;</span>
+          <span class="s1">else p2Score++;</span>
+          <span class="s1">resetRound();</span>
+        <span class="s1">} else if (roundTicks &lt;= 0) {</span>
+          <span class="s1">if (p1IsTagger) p2Score++;</span>
+          <span class="s1">else p1Score++;</span>
+          <span class="s1">resetRound();</span>
+        <span class="s1">}</span>
+      <span class="s1">}</span>
+
+      <span class="s1">function draw() {</span>
+        <span class="s1">// clear (canvas has bg via CSS; still clear for safety)</span>
+        <span class="s1">ctx.clearRect(0, 0, w, h);</span>
+
+        <span class="s1">// grid</span>
+        <span class="s1">ctx.strokeStyle = &quot;rgb(25,25,25)&quot;;</span>
+        <span class="s1">ctx.lineWidth = 1;</span>
+        <span class="s1">for (let x = 0; x &lt; w; x += 40) {</span>
+          <span class="s1">ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();</span>
+        <span class="s1">}</span>
+        <span class="s1">for (let y = 0; y &lt; h; y += 40) {</span>
+          <span class="s1">ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();</span>
+        <span class="s1">}</span>
+
+        <span class="s1">// obstacles</span>
+        <span class="s1">for (const r of obs) {</span>
+          <span class="s1">ctx.fillStyle = &quot;rgb(0,180,255)&quot;;</span>
+          <span class="s1">ctx.fillRect(r.x, r.y, r.width, r.height);</span>
+          <span class="s1">ctx.strokeStyle = &quot;#ffffff&quot;;</span>
+          <span class="s1">ctx.strokeRect(r.x, r.y, r.width, r.height);</span>
+        <span class="s1">}</span>
+
+        <span class="s1">const p1IsTagger = (count % 2 === 1);</span>
+        <span class="s1">const p2Size = (count % 2 === 0) ? (boxWH + 10) : boxWH;</span>
+        <span class="s1">const p1Size = (count % 2 === 0) ? boxWH : (boxWH + 10);</span>
+
+        <span class="s1">// players (swap big/small + colors)</span>
+        <span class="s1">if (count % 2 === 0) {</span>
+          <span class="s1">ctx.fillStyle = &quot;#ff2a2a&quot;; // red</span>
+          <span class="s1">ctx.fillRect(px, py, p2Size, p2Size);</span>
+          <span class="s1">ctx.fillStyle = &quot;#ffffff&quot;;</span>
+          <span class="s1">ctx.fillRect(px2, py2, p1Size, p1Size);</span>
+        <span class="s1">} else {</span>
+          <span class="s1">ctx.fillStyle = &quot;#ffffff&quot;;</span>
+          <span class="s1">ctx.fillRect(px, py, p2Size, p2Size);</span>
+          <span class="s1">ctx.fillStyle = &quot;#ff2a2a&quot;;</span>
+          <span class="s1">ctx.fillRect(px2, py2, p1Size, p1Size);</span>
+        <span class="s1">}</span>
+
+        <span class="s1">// border</span>
+        <span class="s1">ctx.strokeStyle = &quot;#f6e04a&quot;;</span>
+        <span class="s1">ctx.lineWidth = 2;</span>
+        <span class="s1">ctx.strokeRect(0.5, 0.5, w - 1, h - 1);</span>
+
+        <span class="s1">// HUD</span>
+        <span class="s1">const secondsLeft = Math.floor((roundTicks + 49) / 50);</span>
+        <span class="s1">ctx.fillStyle = &quot;#ffffff&quot;;</span>
+        <span class="s1">ctx.font = &quot;16px system-ui, -apple-system, Segoe UI, Roboto, Arial&quot;;</span>
+        <span class="s1">ctx.fillText(`P1: ${p1Score}`, 15, 20);</span>
+        <span class="s1">ctx.fillText(`TIME: ${secondsLeft}`, (w/2) - 35, 20);</span>
+        <span class="s1">ctx.fillText(`P2: ${p2Score}`, w - 70, 20);</span>
+
+        <span class="s1">ctx.font = &quot;14px system-ui, -apple-system, Segoe UI, Roboto, Arial&quot;;</span>
+        <span class="s1">ctx.fillText(p1IsTagger ? &quot;TAGGER&quot; : &quot;RUNNER&quot;, 15, 40);</span>
+        <span class="s1">ctx.fillText(p1IsTagger ? &quot;RUNNER&quot; : &quot;TAGGER&quot;, w - 85, 40);</span>
+
+        <span class="s1">ctx.fillText(&quot;Dev: Mcant&quot;, 10, h - 10);</span>
+      <span class="s1">}</span>
+
+      <span class="s1">// Input handling</span>
+      <span class="s1">function setKey(e, isDown) {</span>
+        <span class="s1">const k = e.key;</span>
+        <span class="s1">if (k === &quot;ArrowLeft&quot;)  keys.left = isDown;</span>
+        <span class="s1">if (k === &quot;ArrowRight&quot;) keys.right = isDown;</span>
+        <span class="s1">if (k === &quot;ArrowUp&quot;)    keys.up = isDown;</span>
+        <span class="s1">if (k === &quot;ArrowDown&quot;)  keys.down = isDown;</span>
+
+        <span class="s1">// WASD (case-insensitive)</span>
+        <span class="s1">if (k === &quot;w&quot; || k === &quot;W&quot;) keys.W = isDown;</span>
+        <span class="s1">if (k === &quot;a&quot; || k === &quot;A&quot;) keys.A = isDown;</span>
+        <span class="s1">if (k === &quot;s&quot; || k === &quot;S&quot;) keys.S = isDown;</span>
+        <span class="s1">if (k === &quot;d&quot; || k === &quot;D&quot;) keys.D = isDown;</span>
+
+        <span class="s1">// prevent page scroll with arrows/space</span>
+        <span class="s1">if ([&quot;ArrowLeft&quot;,&quot;ArrowRight&quot;,&quot;ArrowUp&quot;,&quot;ArrowDown&quot;].includes(k)) {</span>
+          <span class="s1">e.preventDefault();</span>
+        <span class="s1">}</span>
+      <span class="s1">}</span>
+
+      <span class="s1">window.addEventListener(&quot;keydown&quot;, (e) =&gt; setKey(e, true), {passive:false});</span>
+      <span class="s1">window.addEventListener(&quot;keyup&quot;,   (e) =&gt; setKey(e, false), {passive:false});</span>
+
+      <span class="s1">// Focus helper</span>
+      <span class="s1">canvas.addEventListener(&quot;pointerdown&quot;, () =&gt; canvas.focus());</span>
+
+      <span class="s1">// Start game</span>
+      <span class="s1">resetPositionsOnly();</span>
+
+      <span class="s1">// 20ms tick like Swing Timer</span>
+      <span class="s1">setInterval(update, 20);</span>
+
+      <span class="s1">// draw loop</span>
+      <span class="s1">function loop() {</span>
+        <span class="s1">draw();</span>
+        <span class="s1">requestAnimationFrame(loop);</span>
+      <span class="s1">}</span>
+      <span class="s1">loop();</span>
+    <span class="s1">})();</span>
+<span class="s0">&lt;/script&gt;</span>
+<span class="s0">&lt;/body&gt;</span>
+<span class="s0">&lt;/html&gt;</span>
+</pre>
+</body>
+</html>
