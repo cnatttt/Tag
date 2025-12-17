@@ -53,15 +53,26 @@
     button:hover { background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
     button:active { transform: translateY(1px); }
 
-    .sliderBox{
+    .sliderBox, .modeBox{
       flex: 1 1 220px;
       border: 2px solid rgba(255,255,255,.12);
       border-radius: 12px;
       padding: 10px 12px;
       background: rgba(255,255,255,.04);
     }
-    .sliderBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
+    .sliderBox label, .modeBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
     input[type="range"] { width: 100%; margin-top: 8px; }
+    .modeBox label { margin-bottom: 6px; }
+    select{
+      width:100%;
+      padding:10px 10px;
+      border-radius:10px;
+      border:2px solid rgba(0,180,255,.25);
+      background: rgba(18,18,50,.9);
+      color:#fff;
+      font-weight:800;
+      outline:none;
+    }
 
     .hint { margin-top: 14px; opacity:.9; font-size: 13px; line-height:1.45; }
     kbd { background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
@@ -88,14 +99,26 @@
       <p class="title">2PlayerTag</p>
       <p class="dev">Dev: Mcant</p>
       <p class="sub">
-        2 players only. Tagger is slightly faster + small reach buff.
-        Survive <b>20 seconds</b> as runner to score.
-        <br/><b>Classic: first to 10 points</b> and you’re brought back to the menu.
+        Tagger is slightly faster + small reach buff.
+        <br/>Classic: survive <b>20 seconds</b> as runner to score — <b>first to 10</b> wins.
+        <br/>Longest Run: each player gets 1 runner turn; longest runner time wins.
+        <br/>Symmetrical random map each round (4 maps). Middle reachable on all.
       </p>
 
       <div class="row">
         <button id="play">PLAY</button>
         <button id="resetScore">RESET SCORE</button>
+
+        <div class="modeBox">
+          <label>
+            <span>Game Mode</span>
+            <span id="modeLabel">Classic</span>
+          </label>
+          <select id="mode">
+            <option value="classic" selected>Classic (First to 10)</option>
+            <option value="longest">Longest Run (2 rounds)</option>
+          </select>
+        </div>
 
         <div class="sliderBox">
           <label>
@@ -127,20 +150,16 @@
     const volLabel = document.getElementById("volLabel");
     const tipBox = document.getElementById("tipBox");
 
+    const modeSel = document.getElementById("mode");
+    const modeLabel = document.getElementById("modeLabel");
+
     const W = canvas.width, H = canvas.height;
 
-    // =========================
-    // 8-bit SOUND (background music + beeps)
-    // =========================
+    // ========= AUDIO (beeps + 8-bit background music) =========
     let volume = 0.70;
-
     let audioReady = false;
     let audioCtx = null;
-
-    // music nodes
     let musicGain = null;
-    let bassGain = null;
-    let drumsGain = null;
     let musicTimer = null;
     let musicStep = 0;
 
@@ -148,28 +167,15 @@
       if(audioReady) return;
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if(!AudioCtx) return;
-
       audioCtx = new AudioCtx();
-
-      // master music gain
       musicGain = audioCtx.createGain();
       musicGain.gain.value = Math.max(0.0001, volume * 0.05);
       musicGain.connect(audioCtx.destination);
-
-      // layers
-      bassGain = audioCtx.createGain();
-      bassGain.gain.value = 0.9;
-      bassGain.connect(musicGain);
-
-      drumsGain = audioCtx.createGain();
-      drumsGain.gain.value = 0.7;
-      drumsGain.connect(musicGain);
-
       audioReady = true;
       startMusic();
     }
 
-    // browsers require interaction before audio
+    // call ensureAudio on any user interaction (browser policy)
     window.addEventListener("pointerdown", ensureAudio, {once:false});
     window.addEventListener("keydown", ensureAudio, {once:false});
 
@@ -184,8 +190,10 @@
       if(volume <= 0) return;
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if(!AudioCtx) return;
-      if(!audioCtx) audioCtx = new AudioCtx();
-
+      if(!audioCtx){
+        // lazy init for beeps too
+        audioCtx = new AudioCtx();
+      }
       const o = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       gain.gain.value = Math.max(0.0001, volume * 0.08);
@@ -197,101 +205,206 @@
       o.stop(audioCtx.currentTime + dur);
     }
 
-    function hzFromMidi(m){ return 440 * Math.pow(2, (m - 69) / 12); }
-
-    function playSquare(freq, dur, gainNode){
-      if(!audioReady || !audioCtx || !gainNode) return;
+    function playNote(freq, dur=0.12){
+      if(!audioReady || !audioCtx || !musicGain) return;
       const t = audioCtx.currentTime;
-
       const o = audioCtx.createOscillator();
       const eg = audioCtx.createGain();
-
       o.type = "square";
       o.frequency.setValueAtTime(freq, t);
 
-      // quick envelope
+      // simple envelope
       eg.gain.setValueAtTime(0.0001, t);
-      eg.gain.linearRampToValueAtTime(0.35, t + 0.01);
+      eg.gain.linearRampToValueAtTime(0.25, t + 0.01);
       eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
       o.connect(eg);
-      eg.connect(gainNode);
+      eg.connect(musicGain);
       o.start(t);
       o.stop(t + dur + 0.02);
     }
 
-    function playNoise(dur, gainNode){
-      if(!audioReady || !audioCtx || !gainNode) return;
-      const t = audioCtx.currentTime;
-
-      const bufferSize = Math.floor(audioCtx.sampleRate * dur);
-      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for(let i=0;i<bufferSize;i++){
-        data[i] = (Math.random()*2 - 1) * 0.7;
-      }
-
-      const src = audioCtx.createBufferSource();
-      src.buffer = buffer;
-
-      const eg = audioCtx.createGain();
-      eg.gain.setValueAtTime(0.0001, t);
-      eg.gain.linearRampToValueAtTime(0.35, t + 0.005);
-      eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-      src.connect(eg);
-      eg.connect(gainNode);
-      src.start(t);
-      src.stop(t + dur + 0.01);
+    function hzFromMidi(m){
+      return 440 * Math.pow(2, (m - 69) / 12);
     }
 
     function startMusic(){
       if(musicTimer) return;
-
-      // Loop: bass + lead-ish pulse + tiny drum ticks
-      // (intentionally simple 8-bit vibe)
+      // simple looping chiptune: bass + lead, 140 bpm-ish
+      const stepMs = 120; // ~8th/16th vibe
       const bass = [36,36,43,43,41,41,38,38, 36,36,43,43,41,41,38,38];
       const lead = [60,62,64,67, 64,62,60,62, 64,67,69,67, 64,62,60,57];
-
-      const stepMs = 120; // tempo
       musicStep = 0;
 
       musicTimer = setInterval(() => {
-        // Bass on even steps
-        if((musicStep % 2) === 0){
-          playSquare(hzFromMidi(bass[musicStep % bass.length]), 0.14, bassGain);
-        }
-        // Lead every step
-        playSquare(hzFromMidi(lead[musicStep % lead.length]), 0.10, bassGain);
+        // keep it running even in menu; volume slider controls everything
+        const b = bass[musicStep % bass.length];
+        const l = lead[musicStep % lead.length];
 
-        // Drums: hi-hat-ish noise on most steps, kick-ish on downbeats
-        if((musicStep % 4) === 0){
-          playNoise(0.04, drumsGain); // kick-ish
-        } else {
-          playNoise(0.02, drumsGain); // hat-ish
-        }
+        // bass on even steps, lead on all steps
+        if((musicStep % 2) === 0) playNote(hzFromMidi(b), 0.14);
+        playNote(hzFromMidi(l), 0.10);
 
         musicStep++;
       }, stepMs);
     }
 
-    // =========================
-    // MAP (ONLY the original)
-    // =========================
-    const obs = [
-      {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
-      {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
+    // ========= UI =========
+    modeSel.addEventListener("change", ()=>{
+      modeLabel.textContent = (modeSel.value === "classic") ? "Classic" : "Longest Run";
+      beep(520, 0.03);
+    });
 
-      {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
-      {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
+    // ========= MAPS (symmetrical + middle reachable) =========
+    function mirrorX(rects){
+      const out = rects.slice();
+      for(const r of rects){
+        out.push({ x: (W - (r.x + r.w)), y: r.y, w: r.w, h: r.h });
+      }
+      return out;
+    }
 
-      {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
-      {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
+    // Build maps from LEFT-HALF pieces + mirror (perfect symmetry)
+    const MAPS = [
+      // MAP 1: "Open pillars + side bumpers"
+      (() => {
+        const L = [
+          // outer frame broken into segments (entrances)
+          {x:120,y:120,w:240,h:20},
+          {x:120,y:660,w:240,h:20},
+          {x:120,y:120,w:20,h:200},
+          {x:120,y:500,w:20,h:180},
 
-      {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
-      {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
+          // side bumpers
+          {x:70,y:260,w:90,h:20},
+          {x:70,y:520,w:90,h:20},
+
+          // pillar grid left half
+          {x:260,y:240,w:35,h:35},
+          {x:260,y:360,w:35,h:35},
+          {x:260,y:480,w:35,h:35},
+
+          {x:340,y:300,w:30,h:30},
+          {x:340,y:450,w:30,h:30},
+
+          // lanes to center (don’t block)
+          {x:360,y:390,w:60,h:20}, // approaches mid
+        ];
+        const center = [
+          // tiny center posts (still allows all-direction entry)
+          {x:395,y:300,w:10,h:200},
+          {x:370,y:390,w:60,h:20},
+        ];
+        return mirrorX(L).concat(center);
+      })(),
+
+      // MAP 2: "S-lanes / corridor dance"
+      (() => {
+        const L = [
+          // top/bottom segments with gaps
+          {x:140,y:150,w:240,h:20},
+          {x:140,y:630,w:240,h:20},
+
+          // left posts split (entrances)
+          {x:140,y:150,w:20,h:170},
+          {x:140,y:480,w:20,h:170},
+
+          // inner S walls (left half)
+          {x:260,y:260,w:160,h:20},
+          {x:260,y:520,w:160,h:20},
+          {x:260,y:280,w:20,h:240},
+
+          // mid connector from left into center
+          {x:320,y:390,w:80,h:20},
+          {x:360,y:320,w:20,h:140},
+
+          // side bumper
+          {x:70,y:390,w:100,h:20},
+        ];
+        const center = [
+          // keep center open but give structure
+          {x:400,y:280,w:20,h:240},
+          {x:380,y:390,w:40,h:20},
+        ];
+        return mirrorX(L).concat(center);
+      })(),
+
+      // MAP 3: "Two rooms + triple bridges (always can reach mid)"
+      (() => {
+        const L = [
+          // left room boundaries (broken)
+          {x:110,y:140,w:20,h:220},
+          {x:110,y:500,w:20,h:200},
+          {x:110,y:140,w:260,h:20},
+          {x:110,y:680,w:260,h:20},
+
+          // inner wall chunks (leave doors)
+          {x:330,y:140,w:20,h:130},
+          {x:330,y:350,w:20,h:110},
+          {x:330,y:540,w:20,h:160},
+
+          // bridges into center (top/mid/bot)
+          {x:350,y:240,w:90,h:20},
+          {x:350,y:390,w:90,h:20},
+          {x:350,y:540,w:90,h:20},
+
+          // jukes
+          {x:200,y:300,w:70,h:20},
+          {x:200,y:500,w:70,h:20},
+        ];
+        const center = [
+          // center thin rails (still passable around them)
+          {x:395,y:220,w:10,h:360},
+          {x:370,y:390,w:60,h:20},
+        ];
+        return mirrorX(L).concat(center);
+      })(),
+
+      // MAP 4: "Diamond mid + multi-entrance ring"
+      (() => {
+        const L = [
+          // outer broken ring
+          {x:130,y:120,w:250,h:20},
+          {x:130,y:660,w:250,h:20},
+          {x:130,y:120,w:20,h:210},
+          {x:130,y:470,w:20,h:210},
+
+          // diagonal-ish blockers (rectangles) to create lanes
+          {x:220,y:220,w:140,h:20},
+          {x:220,y:560,w:140,h:20},
+          {x:220,y:240,w:20,h:140},
+          {x:220,y:420,w:20,h:140},
+
+          // side bumpers (wide lanes)
+          {x:70,y:300,w:110,h:20},
+          {x:70,y:500,w:110,h:20},
+
+          // approach to center from multiple angles
+          {x:340,y:330,w:60,h:20},
+          {x:340,y:450,w:60,h:20},
+        ];
+        const center = [
+          // “diamond” made of 4 small posts (center still enterable from N/E/S/W)
+          {x:385,y:340,w:30,h:30},
+          {x:385,y:430,w:30,h:30},
+          {x:340,y:385,w:30,h:30},
+          {x:430,y:385,w:30,h:30},
+        ];
+        return mirrorX(L).concat(center);
+      })(),
     ];
 
+    let obs = MAPS[0];
+    let lastMap = -1;
+
+    function pickRandomMap(){
+      let idx = Math.floor(Math.random() * MAPS.length);
+      if(MAPS.length > 1 && idx === lastMap) idx = (idx + 1) % MAPS.length;
+      lastMap = idx;
+      obs = MAPS[idx];
+    }
+
+    // ========= COLLISION / MOVE =========
     function rectsIntersect(a,b){
       return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
@@ -301,7 +414,6 @@
       }
       return false;
     }
-
     function tryMove(x, y, dx, dy, size){
       let nx = x, ny = y;
 
@@ -322,27 +434,30 @@
       p.x = nxt.x; p.y = nxt.y;
     }
 
-    // =========================
-    // GAME STATE (Classic first to 10)
-    // =========================
+    // ========= GAME STATE =========
     const base = 20;
     const big  = base + 10;
 
     const p1 = { x:30,  y:30,  score:0 }; // WASD
     const p2 = { x:740, y:740, score:0 }; // Arrows
 
-    let count = 0; // swap roles each round end
-
-    const ROUND_SECONDS = 20;
-    let timeLeft = ROUND_SECONDS;
-
+    let count = 0; // role swap counter
     const SPEED = 8;
     const TAG_SPEED = SPEED + 1;
     const TAG_REACH = 4;
 
+    const ROUND_SECONDS = 20;
+    let timeLeft = ROUND_SECONDS;
+
     const WIN_POINTS = 10;
 
     let running = false;
+
+    // Longest Run
+    let mode = "classic";
+    let lrPhase = 0;    // 1 then 2 then done
+    let lrP1Best = 0;   // seconds
+    let lrP2Best = 0;   // seconds
 
     const keys = new Set();
     window.addEventListener("keydown", (e)=>{
@@ -356,13 +471,17 @@
     function sizeForP1(){ return isP1Tagger() ? big : base; }
     function sizeForP2(){ return isP1Tagger() ? base : big; }
 
+    function forceRoles(p1Tagger){
+      count = p1Tagger ? 1 : 0;
+    }
+
     function loadTip(){
       const tips = [
-        "Tip: As tagger, cut corners instead of following directly.",
-        "Tip: Don’t run straight to the border—use obstacles to juke.",
-        "Tip: Fake a direction change at the center blocks—people over-commit.",
-        "Tip: If you get boxed, slide along obstacles instead of stopping.",
-        "Tip: Runner: survive the clock—play patient near mid."
+        "Tip: Tagger wins by cutting corners, not chasing behind.",
+        "Tip: Runner: don’t hug borders—use mid lanes to juke.",
+        "Tip: Random symmetrical maps—learn the center entries fast.",
+        "Tip: In Longest Run, play safe early, risky late.",
+        "Tip: Slide along obstacles instead of stopping when boxed.",
       ];
       tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
     }
@@ -371,35 +490,71 @@
       running = false;
       menu.style.display = "flex";
       keys.clear();
+
+      // reset Longest Run session state (scores stay unless you hit reset)
+      lrPhase = 0;
+      lrP1Best = 0;
+      lrP2Best = 0;
+
       loadTip();
       beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
     }
 
     function startGame(){
       ensureAudio();
+      mode = modeSel.value;
       running = true;
       menu.style.display = "none";
 
-      // start fresh match
-      p1.score = 0; p2.score = 0;
-      count = 0;
-      startRound(false);
+      if(mode === "classic"){
+        // start fresh match (keeps scores if you didn't reset? most games reset match scores)
+        p1.score = 0; p2.score = 0;
+        count = 0;
+        startRound(false); // no swap on match start
+      } else {
+        startLongestRun();
+      }
 
       beep(880, 0.04);
     }
 
+    // IMPORTANT: map only changes AFTER a round ends (this function is called only between rounds)
     function startRound(swapRoles=true){
-      // (only one map now, so we just reset positions/timer)
+      pickRandomMap();
       p1.x = 30;  p1.y = 30;
       p2.x = 740; p2.y = 740;
       if(swapRoles) count++;
       timeLeft = ROUND_SECONDS;
     }
 
-    function endMatchAndReturn(){
+    function startLongestRun(){
+      lrPhase = 1;
+      lrP1Best = 0;
+      lrP2Best = 0;
+
+      // Phase 1: P1 runner, P2 tagger
+      forceRoles(false); // P2 tagger
+      startRound(false);
+    }
+
+    function endClassicMatchAndReturn(){
       const winner = (p1.score > p2.score) ? "P1" : "P2";
       openMenu();
-      tipBox.textContent = `🏆 ${winner} WINS! Final: P1 ${p1.score} - P2 ${p2.score}`;
+      tipBox.textContent = `🏆 ${winner} WINS the Classic match! Final: P1 ${p1.score} - P2 ${p2.score}`;
+      beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
+    }
+
+    function endLongestRunAndReturn(){
+      const p1Sec = lrP1Best.toFixed(2);
+      const p2Sec = lrP2Best.toFixed(2);
+
+      let msg = "";
+      if(lrP1Best > lrP2Best) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else if(lrP2Best > lrP1Best) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+
+      openMenu();
+      tipBox.textContent = "🏁 Longest Run Results: " + msg;
       beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
     }
 
@@ -413,6 +568,7 @@
     };
 
     // Surprise
+    let shakeTicks = 0;
     window.addEventListener("keydown", (e)=>{
       if(!running && e.key.toLowerCase() === "m"){
         tipBox.textContent = "👀 Secret found: Mcant Mode unlocked (it does nothing... yet).";
@@ -420,18 +576,16 @@
       }
     });
 
-    // =========================
-    // LOOP (real seconds)
-    // =========================
-    let shakeTicks = 0;
+    // ========= GAME LOOP (real seconds, not fake “50 fps”) =========
     let lastT = performance.now();
 
     function step(t){
-      const dt = Math.min(0.05, (t - lastT) / 1000);
+      const dt = Math.min(0.05, (t - lastT) / 1000); // clamp for tab-switch spikes
       lastT = t;
 
       update(dt);
       draw();
+
       requestAnimationFrame(step);
     }
 
@@ -442,8 +596,8 @@
       const p1Size = sizeForP1();
       const p2Size = sizeForP2();
 
-      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
-      const p2Speed = p1Tag ? SPEED : TAG_SPEED;
+      const p1Speed = (p1Tag ? TAG_SPEED : SPEED);
+      const p2Speed = (p1Tag ? SPEED : TAG_SPEED);
 
       // P1 (WASD)
       let p1dx = 0, p1dy = 0;
@@ -477,26 +631,54 @@
       const tagged = rectsIntersect(hb1, hb2);
       const timeUp = (timeLeft <= 0);
 
-      if(tagged){
-        if(p1Tag) p1.score++; else p2.score++;
-        shakeTicks = 14;
-        beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+      if(mode === "classic"){
+        if(tagged){
+          if(p1Tag) p1.score++; else p2.score++;
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
 
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endMatchAndReturn();
-          return;
-        }
-        startRound(true);
-      } else if(timeUp){
-        // runner scores for surviving
-        if(p1Tag) p2.score++; else p1.score++;
-        beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicMatchAndReturn();
+            return;
+          }
+          startRound(true); // round ended -> now map switches
+        } else if(timeUp){
+          // runner scores for surviving
+          if(p1Tag) p2.score++; else p1.score++;
+          beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
 
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endMatchAndReturn();
-          return;
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicMatchAndReturn();
+            return;
+          }
+          startRound(true); // round ended -> now map switches
         }
-        startRound(true);
+      } else {
+        // Longest Run: each phase is a round; time survived is (ROUND_SECONDS - timeLeft)
+        const survived = (ROUND_SECONDS - timeLeft);
+
+        // Phase 1: P1 runner (P2 tagger)
+        if(lrPhase === 1 && !p1Tag){
+          lrP1Best = Math.max(lrP1Best, Math.min(ROUND_SECONDS, survived));
+        }
+        // Phase 2: P2 runner (P1 tagger)
+        if(lrPhase === 2 && p1Tag){
+          lrP2Best = Math.max(lrP2Best, Math.min(ROUND_SECONDS, survived));
+        }
+
+        if(tagged || timeUp){
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(lrPhase === 1){
+            lrPhase = 2;
+            forceRoles(true);    // P1 tagger, P2 runner
+            startRound(false);   // round ended -> now map switches
+          } else if(lrPhase === 2){
+            lrPhase = 3;
+            endLongestRunAndReturn();
+          }
+        }
       }
     }
 
@@ -512,7 +694,7 @@
       g.clearRect(0,0,W,H);
       g.setTransform(1,0,0,1,sx,sy);
 
-      // grid
+      // background grid
       g.strokeStyle = "rgb(25,25,25)";
       for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
       for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
@@ -540,7 +722,7 @@
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // text
+      // UI text
       g.fillStyle = "white";
       g.font = "16px system-ui, Arial";
       g.fillText(`P1: ${p1.score}`, 14, 22);
@@ -551,14 +733,22 @@
       g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
       g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
 
-      g.font = "13px system-ui, Arial";
-      g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
+      if(mode === "classic"){
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
+      } else {
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Longest Run`, (W/2)-45, 44);
+        g.fillText(`P1 best: ${lrP1Best.toFixed(2)}s`, 14, 62);
+        g.fillText(`P2 best: ${lrP2Best.toFixed(2)}s`, W-150, 62);
+        g.fillText(`Round: ${Math.min(lrPhase,2)}/2`, (W/2)-34, 62);
+      }
 
       g.font = "12px system-ui, Arial";
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
     }
 
-    // start menu + loop
+    // start on menu + loop
     openMenu();
     requestAnimationFrame(step);
   </script>
