@@ -1,424 +1,227 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>2PlayerTag</title>
-  <style>
-    html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
-    .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
-    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; }
-
-    /* Menu */
-    .ui {
-      position: fixed; inset: 0;
-      display:flex; align-items:center; justify-content:center;
-      background: radial-gradient(circle at 50% 20%, rgba(255,212,0,.18), rgba(0,0,0,.65));
-    }
-    .card {
-      width: min(560px, 92vw);
-      background: rgba(10,10,25,.92);
-      border: 2px solid rgba(255,212,0,.35);
-      border-radius: 18px;
-      padding: 20px;
-      color: #fff;
-      box-shadow: 0 22px 70px rgba(0,0,0,.55);
-      position: relative;
-      overflow: hidden;
-    }
-    .glow {
-      position:absolute; inset:-40px;
-      background: conic-gradient(from 180deg, rgba(0,180,255,.0), rgba(0,180,255,.25), rgba(255,212,0,.2), rgba(0,180,255,.0));
-      filter: blur(30px);
-      opacity: .55;
-      animation: spin 6s linear infinite;
-      pointer-events:none;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .title { font-size: 26px; font-weight: 900; margin: 0 0 4px; letter-spacing: .4px; }
-    .dev { opacity:.9; margin: 0 0 14px; font-weight: 700; }
-    .sub { opacity: .85; margin: 0 0 14px; line-height: 1.35; }
-
-    .row { display:flex; gap: 12px; flex-wrap: wrap; align-items:center; }
-    button {
-      cursor:pointer;
-      border: 2px solid rgba(0,180,255,.35);
-      background: rgba(18,18,50,.9);
-      color:#fff;
-      padding: 12px 14px;
-      border-radius: 12px;
-      font-weight: 800;
-      transition: transform .05s ease, background .15s ease, border-color .15s ease;
-    }
-    button:hover { background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
-    button:active { transform: translateY(1px); }
-
-    .sliderBox {
-      flex: 1 1 220px;
-      border: 2px solid rgba(255,255,255,.12);
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,.04);
-    }
-    .sliderBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
-    input[type="range"] { width: 100%; margin-top: 8px; }
-
-    .hint { margin-top: 14px; opacity:.9; font-size: 13px; line-height:1.45; }
-    kbd { background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
-    .tip {
-      margin-top: 10px;
-      font-size: 12px;
-      opacity: .85;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,212,0,.25);
-      background: rgba(255,212,0,.06);
-    }
-  </style>
+<meta charset="utf-8">
+<title>2PlayerTag</title>
+<style>
+html,body{margin:0;height:100%;background:#0d0782;font-family:system-ui}
+canvas{display:block;margin:auto;border:2px solid #ffd400}
+.ui{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+background:rgba(0,0,0,.6)}
+.card{background:#0b0b2a;color:white;padding:20px 24px;border-radius:16px;
+border:2px solid rgba(255,212,0,.4);width:520px}
+h1{margin:0;font-size:28px}
+button{margin:6px 6px 6px 0;padding:10px 14px;border-radius:10px;
+border:2px solid #4ad;background:#16164a;color:white;font-weight:700;cursor:pointer}
+button:hover{border-color:#ffd400}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sliderBox{flex:1;background:#16164a;padding:10px;border-radius:10px;border:1px solid #444}
+label{display:flex;justify-content:space-between;font-weight:700}
+input[type=range]{width:100%}
+.tip{margin-top:12px;font-size:13px;opacity:.85;border:1px solid #ffd40055;
+padding:8px;border-radius:10px}
+</style>
 </head>
+
 <body>
-  <div class="wrap">
-    <canvas id="c" width="800" height="800"></canvas>
-  </div>
+<canvas id="c" width="800" height="800"></canvas>
 
-  <div class="ui" id="menu">
-    <div class="card">
-      <div class="glow"></div>
+<div class="ui" id="menu">
+  <div class="card">
+    <h1>2PlayerTag</h1>
+    <p><b>Dev:</b> Mcant</p>
 
-      <p class="title">2PlayerTag</p>
-      <p class="dev">Dev: Mcant</p>
-      <p class="sub">
-        2 players only. Tagger is slightly faster + small reach buff.
-        Survive <b>20 seconds</b> as runner to score.
-      </p>
+    <div class="row">
+      <button id="play">PLAY</button>
+      <button id="resetScore">RESET SCORE</button>
+    </div>
 
-      <div class="row">
-        <button id="play">PLAY</button>
-        <button id="resetScore">RESET SCORE</button>
-
-        <div class="sliderBox">
-          <label>
-            <span>Volume</span>
-            <span id="volLabel">70%</span>
-          </label>
-          <input id="vol" type="range" min="0" max="100" value="70" />
-        </div>
+    <div class="row">
+      <div class="sliderBox">
+        <label><span>Volume</span><span id="volLabel">70%</span></label>
+        <input id="vol" type="range" min="0" max="100" value="70">
       </div>
 
-      <div class="hint">
-        <div><b>Player 1 (top-left):</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
-        <div><b>Player 2 (bottom-right):</b> Arrow Keys</div>
-        <div style="margin-top:8px;">Press <b>Esc</b> to go back to the menu.</div>
+      <div class="sliderBox">
+        <label><span>Power-Ups</span><span id="puLabel">ON</span></label>
+        <input id="puToggle" type="range" min="0" max="1" step="1" value="1">
       </div>
+    </div>
 
-      <div class="tip" id="tipBox">Tip: (loads when you open the menu)</div>
+    <div class="tip" id="tip">
+      Tip: Cut off lanes instead of chasing directly.
     </div>
   </div>
+</div>
 
-  <script>
-    const canvas = document.getElementById("c");
-    const g = canvas.getContext("2d");
+<script>
+const c = document.getElementById("c");
+const g = c.getContext("2d");
+const W=c.width,H=c.height;
 
-    const menu = document.getElementById("menu");
-    const playBtn = document.getElementById("play");
-    const resetScoreBtn = document.getElementById("resetScore");
-    const vol = document.getElementById("vol");
-    const volLabel = document.getElementById("volLabel");
-    const tipBox = document.getElementById("tipBox");
+const menu=document.getElementById("menu");
+const playBtn=document.getElementById("play");
+const resetBtn=document.getElementById("resetScore");
+const vol=document.getElementById("vol");
+const volLabel=document.getElementById("volLabel");
+const puToggle=document.getElementById("puToggle");
+const puLabel=document.getElementById("puLabel");
+const tip=document.getElementById("tip");
 
-    const W = canvas.width, H = canvas.height;
+let volume=0.7;
+vol.oninput=()=>{volume=vol.value/100;volLabel.textContent=Math.round(volume*100)+"%";};
 
-    // --- Sound (tiny UI beeps) ---
-    let volume = 0.70;
-    vol.addEventListener("input", () => {
-      volume = Number(vol.value) / 100;
-      volLabel.textContent = Math.round(volume * 100) + "%";
-      beep(660, 0.03);
-    });
+let powerUpsEnabled=true;
+puToggle.oninput=()=>{
+  powerUpsEnabled=puToggle.value==="1";
+  puLabel.textContent=powerUpsEnabled?"ON":"OFF";
+};
 
-    function beep(freq=440, dur=0.04){
-      if(volume <= 0) return;
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if(!AudioCtx) return;
-      const ctx = beep._ctx || (beep._ctx = new AudioCtx());
-      const o = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = Math.max(0.0001, volume * 0.08);
-      o.frequency.value = freq;
-      o.type = "square";
-      o.connect(gain);
-      gain.connect(ctx.destination);
-      o.start();
-      o.stop(ctx.currentTime + dur);
-    }
+function beep(f=440,d=.04){
+ if(volume<=0)return;
+ const A=window.AudioContext||window.webkitAudioContext;
+ if(!beep.ctx)beep.ctx=new A();
+ const o=beep.ctx.createOscillator();
+ const g2=beep.ctx.createGain();
+ g2.gain.value=volume*.08;
+ o.frequency.value=f;o.connect(g2);g2.connect(beep.ctx.destination);
+ o.start();o.stop(beep.ctx.currentTime+d);
+}
 
-    // ---------- MAP / OBSTACLES ----------
-    const obs = [
-      {x:160,y:160,w:280,h:20},
-      {x:520,y:160,w:120,h:20},
+// MAP
+const obs=[
+{x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
+{x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
+{x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
+{x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180}
+];
 
-      {x:160,y:620,w:120,h:20},
-      {x:360,y:620,w:280,h:20},
+const p1={x:30,y:30,score:0};   // WASD
+const p2={x:740,y:740,score:0}; // Arrows
 
-      {x:160,y:160,w:20,h:220},
-      {x:160,y:460,w:20,h:180},
+const BASE=20,BIG=30;
+const SPEED=8,TAG_SPEED=9;
+const ROUND=1500;
+let roundTicks=ROUND;
+let count=0;
+let running=false;
 
-      {x:620,y:160,w:20,h:180},
-      {x:620,y:460,w:20,h:180},
+let keys=new Set();
+window.onkeydown=e=>{
+ keys.add(e.key.toLowerCase());
+ if(e.key==="Escape")openMenu();
+};
+window.onkeyup=e=>keys.delete(e.key.toLowerCase());
 
-      {x:360,y:260,w:30,h:30},
-      {x:430,y:260,w:30,h:30},
-      {x:360,y:510,w:30,h:30},
-      {x:430,y:510,w:30,h:30},
+const power={active:false,x:0,y:0,size:18,type:"speed",ttl:0};
+let nextPower=300;
 
-      {x:90,y:280,w:60,h:20},
-      {x:90,y:500,w:60,h:20},
-      {x:650,y:280,w:60,h:20},
-      {x:650,y:500,w:60,h:20},
-    ];
+function openMenu(){running=false;menu.style.display="flex";}
+function start(){running=true;menu.style.display="none";resetRound(false);}
 
-    function rectsIntersect(a,b){
-      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-    }
-    function rectIntersectsAny(r){
-      for(const o of obs){
-        if(rectsIntersect(r, o)) return true;
-      }
-      return false;
-    }
+playBtn.onclick=start;
+resetBtn.onclick=()=>{p1.score=p2.score=0;beep(300,.05);};
 
-    function tryMove(x, y, dx, dy, size){
-      let nx = x, ny = y;
+function isP1Tagger(){return count%2===1;}
+function size1(){return isP1Tagger()?BIG:BASE;}
+function size2(){return isP1Tagger()?BASE:BIG;}
 
-      // X slide
-      nx += dx;
-      let testX = {x:nx, y:y, w:size, h:size};
-      if(rectIntersectsAny(testX)) nx = x;
+function collide(r){
+ for(const o of obs)
+  if(r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y) return true;
+ return false;
+}
 
-      // Y slide
-      ny += dy;
-      let testY = {x:nx, y:ny, w:size, h:size};
-      if(rectIntersectsAny(testY)) ny = y;
+function move(p,dx,dy,s){
+ let nx=p.x+dx,ny=p.y;
+ if(!collide({x:nx,y:ny,w:s,h:s}))p.x=nx;
+ ny=p.y+dy;
+ if(!collide({x:p.x,y:ny,w:s,h:s}))p.y=ny;
+ p.x=Math.max(0,Math.min(W-s,p.x));
+ p.y=Math.max(0,Math.min(H-s,p.y));
+}
 
-      // clamp
-      nx = Math.max(0, Math.min(W - size, nx));
-      ny = Math.max(0, Math.min(H - size, ny));
+function resetRound(swap=true){
+ p1.x=30;p1.y=30;p2.x=740;p2.y=740;
+ if(swap)count++;
+ roundTicks=ROUND;
+ power.active=false;
+}
 
-      return {x:nx, y:ny};
-    }
-    function slideMove(p, dx, dy, size){
-      const nxt = tryMove(p.x, p.y, dx, dy, size);
-      p.x = nxt.x; p.y = nxt.y;
-    }
+function spawnPower(){
+ if(!powerUpsEnabled)return;
+ power.active=true;
+ power.x=Math.random()*(W-100)+50;
+ power.y=Math.random()*(H-100)+50;
+ power.ttl=300;
+ power.type=["speed","time"][Math.random()*2|0];
+ beep(900,.03);
+}
 
-    // ---------- GAME STATE ----------
-    const base = 20;
-    const big  = base + 10;
+function update(){
+ if(!running)return;
 
-    // P1 top-left (WASD)
-    const p1 = { x:30,  y:30,  score:0 };
-    // P2 bottom-right (arrows)
-    const p2 = { x:740, y:740, score:0 };
+ let p1s=isP1Tagger()?TAG_SPEED:SPEED;
+ let p2s=isP1Tagger()?SPEED:TAG_SPEED;
 
-    // count%2==0 => P2 is big (tagger); count%2==1 => P1 is big (tagger)
-    let count = 0;
+ if(keys.has("w"))move(p1,0,-p1s,size1());
+ if(keys.has("s"))move(p1,0,p1s,size1());
+ if(keys.has("a"))move(p1,-p1s,0,size1());
+ if(keys.has("d"))move(p1,p1s,0,size1());
 
-    // ✅ 20 seconds @ 50 ticks/sec
-    const ROUND_TICKS = 1000;
-    let roundTicks = ROUND_TICKS;
+ if(keys.has("arrowup"))move(p2,0,-p2s,size2());
+ if(keys.has("arrowdown"))move(p2,0,p2s,size2());
+ if(keys.has("arrowleft"))move(p2,-p2s,0,size2());
+ if(keys.has("arrowright"))move(p2,p2s,0,size2());
 
-    const SPEED = 8;
-    const TAG_SPEED = SPEED + 1;
-    const TAG_REACH = 4;
+ if(powerUpsEnabled){
+  if(!power.active){ if(--nextPower<=0){spawnPower();nextPower=300;}}
+  else if(--power.ttl<=0) power.active=false;
+ }
 
-    let running = false;
+ let r1={x:p1.x,y:p1.y,w:size1(),h:size1()};
+ let r2={x:p2.x,y:p2.y,w:size2(),h:size2()};
+ if(isP1Tagger())r1={x:r1.x-4,y:r1.y-4,w:r1.w+8,h:r1.h+8};
+ else r2={x:r2.x-4,y:r2.y-4,w:r2.w+8,h:r2.h+8};
 
-    const keys = new Set();
-    window.addEventListener("keydown", (e)=>{
-      if(e.key === "Escape"){ openMenu(); }
-      keys.add(e.key.toLowerCase());
-      if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
-    }, {passive:false});
-    window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
+ if(r1.x<r2.x+r2.w&&r1.x+r1.w>r2.x&&r1.y<r2.y+r2.h&&r1.y+r1.h>r2.y){
+  if(isP1Tagger())p1.score++; else p2.score++;
+  resetRound(true);
+ }
 
-    function isP1Tagger(){ return (count % 2 === 1); }
-    function sizeForP1(){ return isP1Tagger() ? big : base; }
-    function sizeForP2(){ return isP1Tagger() ? base : big; }
+ if(--roundTicks<=0){
+  if(isP1Tagger())p2.score++; else p1.score++;
+  resetRound(true);
+ }
+}
 
-    function openMenu(){
-      running = false;
-      menu.style.display = "flex";
-      loadTip();
-      // surprise: soft menu beep pattern
-      beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
-    }
+function draw(){
+ g.clearRect(0,0,W,H);
+ g.strokeStyle="#222";
+ for(let i=0;i<W;i+=40){g.beginPath();g.moveTo(i,0);g.lineTo(i,H);g.stroke();}
+ for(let i=0;i<H;i+=40){g.beginPath();g.moveTo(0,i);g.lineTo(W,i);g.stroke();}
 
-    function startGame(){
-      running = true;
-      menu.style.display = "none";
-      resetRound(false);
-      beep(880, 0.04);
-    }
+ g.fillStyle="#00b4ff";
+ obs.forEach(o=>{g.fillRect(o.x,o.y,o.w,o.h);g.strokeRect(o.x,o.y,o.w,o.h);});
 
-    function resetRound(swapRoles=true){
-      p1.x = 30;  p1.y = 30;
-      p2.x = 740; p2.y = 740;
-      if(swapRoles) count++;
-      roundTicks = ROUND_TICKS;
-    }
+ if(power.active){
+  g.fillStyle="#ffd400";
+  g.beginPath();g.arc(power.x,power.y,9,0,Math.PI*2);g.fill();
+ }
 
-    playBtn.onclick = startGame;
+ g.fillStyle=isP1Tagger()?"red":"white";
+ g.fillRect(p1.x,p1.y,size1(),size1());
+ g.fillStyle=isP1Tagger()?"white":"red";
+ g.fillRect(p2.x,p2.y,size2(),size2());
 
-    resetScoreBtn.onclick = ()=>{
-      p1.score = 0; p2.score = 0;
-      beep(330, 0.04);
-      setTimeout(()=>beep(220, 0.04), 60);
-    };
+ g.fillStyle="white";
+ g.fillText("P1: "+p1.score,14,20);
+ g.fillText("TIME: "+Math.ceil(roundTicks/50),(W/2)-30,20);
+ g.fillText("P2: "+p2.score,W-70,20);
+}
 
-    // --- Surprise stuff: secret key + tiny shake on tag ---
-    let shakeTicks = 0;
-    window.addEventListener("keydown", (e)=>{
-      // Secret: press "M" on menu for a surprise message + sound
-      if(!running && e.key.toLowerCase() === "m"){
-        tipBox.textContent = "👀 Secret found: Mcant Mode unlocked (it does nothing... yet).";
-        beep(990, 0.05); setTimeout(()=>beep(1320, 0.05), 70);
-      }
-    });
-
-    const tips = [
-      "Tip: As tagger, try cutting corners instead of following directly.",
-      "Tip: Don’t run straight to the border—use pillars to juke.",
-      "Tip: If you’re runner, keep a route in your head: top gap → center → side bumper.",
-      "Tip: Fake a direction change at the pillars. People over-commit.",
-      "Tip: If you get boxed, slide along obstacles instead of stopping.",
-    ];
-    function loadTip(){
-      tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
-    }
-
-    // ---------- LOOP ----------
-    function step(){
-      update();
-      draw();
-      requestAnimationFrame(step);
-    }
-
-    function update(){
-      if(!running) return;
-
-      const p1Tag = isP1Tagger();
-      const p1Size = sizeForP1();
-      const p2Size = sizeForP2();
-
-      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
-      const p2Speed = p1Tag ? SPEED : TAG_SPEED;
-
-      // P1 (WASD)
-      let p1dx = 0, p1dy = 0;
-      if(keys.has("w")) p1dy -= p1Speed;
-      if(keys.has("s")) p1dy += p1Speed;
-      if(keys.has("a")) p1dx -= p1Speed;
-      if(keys.has("d")) p1dx += p1Speed;
-      slideMove(p1, p1dx, p1dy, p1Size);
-
-      // P2 (Arrows)
-      let p2dx = 0, p2dy = 0;
-      if(keys.has("arrowup")) p2dy -= p2Speed;
-      if(keys.has("arrowdown")) p2dy += p2Speed;
-      if(keys.has("arrowleft")) p2dx -= p2Speed;
-      if(keys.has("arrowright")) p2dx += p2Speed;
-      slideMove(p2, p2dx, p2dy, p2Size);
-
-      // timer
-      if(roundTicks > 0) roundTicks--;
-
-      // tag check with reach buff
-      let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
-      let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
-
-      if(p1Tag){
-        hb1 = {x:hb1.x - TAG_REACH, y:hb1.y - TAG_REACH, w:hb1.w + TAG_REACH*2, h:hb1.h + TAG_REACH*2};
-      } else {
-        hb2 = {x:hb2.x - TAG_REACH, y:hb2.y - TAG_REACH, w:hb2.w + TAG_REACH*2, h:hb2.h + TAG_REACH*2};
-      }
-
-      const tagged = rectsIntersect(hb1, hb2);
-
-      if(tagged){
-        if(p1Tag) p1.score++; else p2.score++;
-        shakeTicks = 14; // surprise: tiny shake on tag
-        beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
-        resetRound(true);
-      } else if(roundTicks <= 0){
-        // runner scores
-        if(p1Tag) p2.score++; else p1.score++;
-        beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
-        resetRound(true);
-      }
-    }
-
-    function draw(){
-      // tiny shake effect (surprise)
-      let sx = 0, sy = 0;
-      if(shakeTicks > 0){
-        shakeTicks--;
-        sx = (Math.random()*8 - 4);
-        sy = (Math.random()*8 - 4);
-      }
-
-      g.setTransform(1,0,0,1,0,0);
-      g.clearRect(0,0,W,H);
-      g.setTransform(1,0,0,1,sx,sy);
-
-      // background grid
-      g.strokeStyle = "rgb(25,25,25)";
-      for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
-      for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
-
-      // obstacles
-      g.fillStyle = "rgb(0,180,255)";
-      g.strokeStyle = "white";
-      for(const r of obs){
-        g.fillRect(r.x,r.y,r.w,r.h);
-        g.strokeRect(r.x,r.y,r.w,r.h);
-      }
-
-      // players
-      const p1Tag = isP1Tagger();
-      const p1Size = sizeForP1();
-      const p2Size = sizeForP2();
-
-      g.fillStyle = p1Tag ? "red" : "white";
-      g.fillRect(p1.x, p1.y, p1Size, p1Size);
-
-      g.fillStyle = p1Tag ? "white" : "red";
-      g.fillRect(p2.x, p2.y, p2Size, p2Size);
-
-      // border
-      g.strokeStyle = "#ffd400";
-      g.strokeRect(0.5,0.5,W-1,H-1);
-
-      // UI text
-      const secondsLeft = Math.ceil(roundTicks / 50);
-
-      g.fillStyle = "white";
-      g.font = "16px system-ui, Arial";
-      g.fillText(`P1: ${p1.score}`, 14, 22);
-      g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
-      g.fillText(`P2: ${p2.score}`, W-70, 22);
-
-      g.font = "14px system-ui, Arial";
-      g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
-      g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
-
-      g.font = "12px system-ui, Arial";
-      g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
-    }
-
-    // Start on menu
-    openMenu();
-    requestAnimationFrame(step);
-  </script>
+function loop(){update();draw();requestAnimationFrame(loop);}
+openMenu();loop();
+</script>
 </body>
 </html>
