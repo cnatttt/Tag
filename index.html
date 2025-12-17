@@ -7,15 +7,15 @@
   <style>
     html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
     .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
-    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline: none; }
+    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline:none; }
 
-    .ui {
+    .ui{
       position: fixed; inset: 0;
       display:flex; align-items:center; justify-content:center;
       background: radial-gradient(circle at 50% 20%, rgba(255,212,0,.18), rgba(0,0,0,.65));
     }
-    .card {
-      width: min(640px, 92vw);
+    .card{
+      width: min(560px, 92vw);
       background: rgba(10,10,25,.92);
       border: 2px solid rgba(255,212,0,.35);
       border-radius: 18px;
@@ -25,7 +25,7 @@
       position: relative;
       overflow: hidden;
     }
-    .glow {
+    .glow{
       position:absolute; inset:-40px;
       background: conic-gradient(from 180deg, rgba(0,180,255,.0), rgba(0,180,255,.25), rgba(255,212,0,.2), rgba(0,180,255,.0));
       filter: blur(30px);
@@ -33,14 +33,14 @@
       animation: spin 6s linear infinite;
       pointer-events:none;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
 
-    .title { font-size: 26px; font-weight: 900; margin: 0 0 4px; letter-spacing: .4px; }
-    .dev { opacity:.9; margin: 0 0 10px; font-weight: 700; }
-    .sub { opacity: .85; margin: 0 0 12px; line-height: 1.35; }
+    .title{ font-size: 26px; font-weight: 900; margin: 0 0 4px; letter-spacing: .4px; }
+    .dev{ opacity:.9; margin: 0 0 14px; font-weight: 700; }
+    .sub{ opacity: .85; margin: 0 0 14px; line-height: 1.35; }
 
-    .row { display:flex; gap: 12px; flex-wrap: wrap; align-items:flex-start; }
-    button {
+    .row{ display:flex; gap: 12px; flex-wrap: wrap; align-items:center; }
+    button{
       cursor:pointer;
       border: 2px solid rgba(0,180,255,.35);
       background: rgba(18,18,50,.9);
@@ -50,20 +50,18 @@
       font-weight: 800;
       transition: transform .05s ease, background .15s ease, border-color .15s ease;
     }
-    button:hover { background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
-    button:active { transform: translateY(1px); }
+    button:hover{ background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
+    button:active{ transform: translateY(1px); }
 
-    .box {
-      flex: 1 1 260px;
+    .sliderBox, .modeBox{
+      flex: 1 1 220px;
       border: 2px solid rgba(255,255,255,.12);
       border-radius: 12px;
       padding: 10px 12px;
       background: rgba(255,255,255,.04);
-      min-width: 240px;
     }
-    .box label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
-    .box .mini { font-size: 12px; opacity: .82; margin-top: 6px; line-height: 1.35; }
-    input[type="range"] { width: 100%; margin-top: 8px; }
+    .sliderBox label, .modeBox label{ display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
+    input[type="range"]{ width: 100%; margin-top: 8px; }
 
     select{
       width:100%;
@@ -77,22 +75,9 @@
       outline:none;
     }
 
-    .checks { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-    .check {
-      display:flex; align-items:center; gap:8px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.12);
-      font-weight: 800;
-      opacity: .95;
-      user-select:none;
-    }
-    .check input { transform: scale(1.15); }
-
-    .hint { margin-top: 12px; opacity:.9; font-size: 13px; line-height:1.45; }
-    kbd { background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
-    .tip {
+    .hint{ margin-top: 14px; opacity:.9; font-size: 13px; line-height:1.45; }
+    kbd{ background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
+    .tip{
       margin-top: 10px;
       font-size: 12px;
       opacity: .85;
@@ -105,7 +90,7 @@
 </head>
 <body>
   <div class="wrap">
-    <canvas id="c" width="800" height="800" tabindex="0"></canvas>
+    <canvas id="c" width="800" height="800"></canvas>
   </div>
 
   <div class="ui" id="menu">
@@ -120,75 +105,32 @@
       </p>
 
       <div class="row">
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="play">PLAY</button>
-          <button id="resetScore">RESET SCORE</button>
-        </div>
+        <button id="play">PLAY</button>
+        <button id="resetScore">RESET SCORE</button>
 
-        <div class="box">
-          <label>
-            <span>Opponent</span>
-            <span id="oppLabel">2 Players</span>
-          </label>
-          <select id="opp">
-            <option value="human" selected>2 Players (Local)</option>
-            <option value="ai">Single Player (vs AI)</option>
-          </select>
-          <div class="mini">AI works as both tagger and runner. Good chases + jukes.</div>
-        </div>
-
-        <div class="box">
+        <div class="modeBox">
           <label>
             <span>Game Mode</span>
             <span id="modeLabel">Classic</span>
           </label>
           <select id="mode">
-            <option value="classic" selected>Classic</option>
+            <option value="classic" selected>Classic (First to 10)</option>
             <option value="longest">Longest Run (2 rounds)</option>
           </select>
-          <div class="mini">Dash + stamina + power-ups enabled in both modes.</div>
         </div>
 
-        <div class="box">
-          <label>
-            <span>Match</span>
-            <span id="matchLabel">First to 10</span>
-          </label>
-          <select id="winPts">
-            <option value="5">First to 5</option>
-            <option value="10" selected>First to 10</option>
-            <option value="15">First to 15</option>
-          </select>
-
-          <label style="margin-top:10px;">
-            <span>Round Time</span>
-            <span id="rtLabel">20s</span>
-          </label>
-          <select id="roundTime">
-            <option value="10">10s</option>
-            <option value="20" selected>20s</option>
-            <option value="30">30s</option>
-          </select>
-        </div>
-
-        <div class="box">
+        <div class="sliderBox">
           <label>
             <span>Volume</span>
             <span id="volLabel">70%</span>
           </label>
           <input id="vol" type="range" min="0" max="100" value="70" />
-          <div class="checks">
-            <div class="check"><input id="togMusic" type="checkbox" checked> <span>Music</span></div>
-            <div class="check"><input id="togSfx" type="checkbox" checked> <span>SFX</span></div>
-            <div class="check"><input id="togGrid" type="checkbox" checked> <span>Grid</span></div>
-            <div class="check"><input id="togCB" type="checkbox"> <span>Colorblind</span></div>
-          </div>
         </div>
       </div>
 
       <div class="hint">
-        <div><b>Player 1:</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> • Dash <kbd>Shift</kbd></div>
-        <div><b>Player 2:</b> Arrow Keys • Dash <kbd>Enter</kbd></div>
+        <div><b>Player 1 (top-left):</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <div><b>Player 2 (bottom-right):</b> Arrow Keys</div>
         <div style="margin-top:8px;">Press <b>Esc</b> to go back to the menu.</div>
         <div style="margin-top:8px; font-size:12px; opacity:.85;">
           (Audio starts after your first click/key press because browsers block autoplay.)
@@ -200,9 +142,6 @@
   </div>
 
   <script>
-    // =========================
-    // CANVAS
-    // =========================
     const canvas = document.getElementById("c");
     const g = canvas.getContext("2d");
 
@@ -217,61 +156,16 @@
     const modeLabel = document.getElementById("modeLabel");
     const modeDesc = document.getElementById("modeDesc");
 
-    const oppSel = document.getElementById("opp");
-    const oppLabel = document.getElementById("oppLabel");
-
-    const winPtsSel = document.getElementById("winPts");
-    const matchLabel = document.getElementById("matchLabel");
-
-    const roundTimeSel = document.getElementById("roundTime");
-    const rtLabel = document.getElementById("rtLabel");
-
-    const togMusic = document.getElementById("togMusic");
-    const togSfx   = document.getElementById("togSfx");
-    const togGrid  = document.getElementById("togGrid");
-    const togCB    = document.getElementById("togCB");
-
     const W = canvas.width, H = canvas.height;
 
     // =========================
-    // OG MAP ONLY
-    // =========================
-    const obs = [
-      {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
-      {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
-
-      {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
-      {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
-
-      {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
-      {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
-
-      {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
-      {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
-    ];
-
-    // =========================
-    // COLLISION
-    // =========================
-    function rectsIntersect(a,b){
-      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-    }
-    function rectIntersectsAny(r){
-      for(const o of obs){
-        if(rectsIntersect(r, o)) return true;
-      }
-      return false;
-    }
-
-    // =========================
-    // SOUND: beeps + 8-bit music
+    // SOUND (beeps + 8-bit background music)
     // =========================
     let volume = 0.70;
 
     const audio = {
       ctx: null,
       musicMaster: null,
-      sfxMaster: null,
       musicRunning: false,
       step: 0,
       timer: null
@@ -284,13 +178,8 @@
 
       audio.ctx = new AudioCtx();
       audio.musicMaster = audio.ctx.createGain();
-      audio.sfxMaster = audio.ctx.createGain();
-
-      audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06) * (togMusic.checked ? 1 : 0);
-      audio.sfxMaster.gain.value   = Math.max(0.0001, volume * 0.10) * (togSfx.checked ? 1 : 0);
-
+      audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
       audio.musicMaster.connect(audio.ctx.destination);
-      audio.sfxMaster.connect(audio.ctx.destination);
     }
 
     function hzFromMidi(m){
@@ -298,7 +187,7 @@
     }
 
     function beep(freq=440, dur=0.04){
-      if(volume <= 0 || !togSfx.checked) return;
+      if(volume <= 0) return;
       ensureAudio();
       if(!audio.ctx) return;
 
@@ -312,42 +201,14 @@
       gain.gain.setValueAtTime(Math.max(0.0001, volume * 0.08), t);
 
       o.connect(gain);
-      gain.connect(audio.sfxMaster);
+      gain.connect(audio.ctx.destination);
 
       o.start(t);
       o.stop(t + dur);
     }
 
-    function sfxTag(){
-      if(!togSfx.checked) return;
-      ensureAudio(); if(!audio.ctx) return;
-      const t = audio.ctx.currentTime;
-
-      // a quick 8-bit "chord hit"
-      const freqs = [220, 277, 330];
-      for(let i=0;i<freqs.length;i++){
-        const o = audio.ctx.createOscillator();
-        const g1 = audio.ctx.createGain();
-        o.type = "square";
-        o.frequency.setValueAtTime(freqs[i], t);
-        g1.gain.setValueAtTime(0.0001, t);
-        g1.gain.linearRampToValueAtTime(Math.max(0.0001, volume * 0.16), t + 0.01);
-        g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-        o.connect(g1); g1.connect(audio.sfxMaster);
-        o.start(t); o.stop(t + 0.14);
-      }
-    }
-
-    function sfxPickup(){
-      beep(880,0.04); setTimeout(()=>beep(1320,0.04), 55);
-    }
-    function sfxShieldPop(){
-      beep(990,0.05); setTimeout(()=>beep(660,0.05), 70);
-    }
-
     function playMusicNote(freq, dur, amp=0.22){
       if(!audio.musicRunning || !audio.ctx || !audio.musicMaster) return;
-      if(!togMusic.checked) return;
 
       const t = audio.ctx.currentTime;
       const o = audio.ctx.createOscillator();
@@ -380,11 +241,10 @@
 
       const stepMs = 120;
       audio.timer = setInterval(() => {
-        if(!audio.ctx) return;
-        if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06) * (togMusic.checked ? 1 : 0);
-        if(audio.sfxMaster)   audio.sfxMaster.gain.value   = Math.max(0.0001, volume * 0.10) * (togSfx.checked ? 1 : 0);
+        if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
 
         const i = audio.step % lead.length;
+
         if((audio.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
         playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
 
@@ -395,7 +255,7 @@
       }, stepMs);
     }
 
-    // unlock audio
+    // unlock audio on first gesture
     window.addEventListener("pointerdown", startMusic, {once:false});
     window.addEventListener("keydown", startMusic, {once:false});
 
@@ -406,92 +266,46 @@
     });
 
     // =========================
-    // INPUT
+    // ONLY ONE MAP (OG map)
     // =========================
-    const keys = new Set();
-    window.addEventListener("keydown", (e)=>{
-      if(e.key === "Escape"){ openMenu(); }
-      keys.add(e.key.toLowerCase());
-      if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
-    }, {passive:false});
-    window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
+    const obs = [
+      {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
+      {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
+
+      {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
+      {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
+
+      {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
+      {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
+
+      {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
+      {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
+    ];
 
     // =========================
-    // PLAYERS + GAME STATE
+    // COLLISION
     // =========================
-    const base = 20;
-    const big  = base + 10;
-
-    const p1 = makePlayer(30, 30);
-    const p2 = makePlayer(740, 740);
-
-    function makePlayer(x,y){
-      return {
-        x, y,
-        score: 0,
-        stamina: 100,
-        dashCd: 0,
-        dashTicks: 0,
-        speedBuff: 0,   // ticks
-        shield: 0,      // 0/1
-        slowDebuff: 0,  // ticks
-        ai: { path: [], repath: 0, targetCell: null }
-      };
+    function rectsIntersect(a,b){
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+    function rectIntersectsAny(r){
+      for(const o of obs){
+        if(rectsIntersect(r, o)) return true;
+      }
+      return false;
     }
 
-    let count = 0; // role swap
-    let running = false;
-
-    let mode = "classic";
-    let WIN_POINTS = 10;
-    let ROUND_TICKS = 1000; // default 20s @ 50fps
-    let roundTicks = ROUND_TICKS;
-
-    // Longest Run
-    let lrPhase = 0;   // 0 none, 1 p1 runner, 2 p2 runner, 3 done
-    let lrP1Time = 0;
-    let lrP2Time = 0;
-
-    // feedback / fx
-    let shakeTicks = 0;
-    let freezeTicks = 0;
-    let bannerText = "";
-    let bannerTicks = 0;
-
-    // countdown
-    let countdown = 0; // ticks; 150 = 3s
-    let countdownLabel = "";
-
-    // powerups
-    const PWR = { NONE:0, SPEED:1, SHIELD:2, TRAP:3 };
-    let power = { type: PWR.NONE, x: 0, y: 0, w: 18, h: 18, alive:false, respawn: 0 };
-    let traps = []; // {x,y,r,ticks,owner} slow zones
-
-    function isP1Tagger(){ return (count % 2 === 1); }
-    function sizeForP1(){ return isP1Tagger() ? big : base; }
-    function sizeForP2(){ return isP1Tagger() ? base : big; }
-
-    function forceRoles(p1Tagger){
-      count = p1Tagger ? 1 : 0;
-    }
-
-    // =========================
-    // MOVEMENT (no portals; just clamp)
-    // =========================
     function tryMove(x, y, dx, dy, size){
       let nx = x, ny = y;
 
-      // X
       nx += dx;
       let testX = {x:nx, y:y, w:size, h:size};
       if(rectIntersectsAny(testX)) nx = x;
 
-      // Y
       ny += dy;
       let testY = {x:nx, y:ny, w:size, h:size};
       if(rectIntersectsAny(testY)) ny = y;
 
-      // clamp to arena
       nx = Math.max(0, Math.min(W - size, nx));
       ny = Math.max(0, Math.min(H - size, ny));
       return {x:nx, y:ny};
@@ -502,109 +316,114 @@
     }
 
     // =========================
-    // TIPS
+    // GAME STATE
     // =========================
+    const base = 20;
+    const big  = base + 10;
+
+    const p1 = { x:30,  y:30,  score:0 }; // WASD
+    const p2 = { x:740, y:740, score:0 }; // Arrows
+
+    let count = 0;
+
+    const ROUND_TICKS = 1000; // 20s @ 50fps
+    let roundTicks = ROUND_TICKS;
+
+    const SPEED = 8;
+    const TAG_SPEED = SPEED + 1;
+    const TAG_REACH = 4;
+
+    const WIN_POINTS = 10;
+
+    let running = false;
+    let shakeTicks = 0;
+
+    // modes
+    let mode = "classic";
+    let lrPhase = 0;   // 0=none, 1=P1 runner, 2=P2 runner, 3=done
+    let lrP1Time = 0;  // ticks survived as runner
+    let lrP2Time = 0;
+
+    const keys = new Set();
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape"){ openMenu(); }
+      keys.add(e.key.toLowerCase());
+      if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
+    }, {passive:false});
+    window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
+
+    function isP1Tagger(){ return (count % 2 === 1); }
+    function sizeForP1(){ return isP1Tagger() ? big : base; }
+    function sizeForP2(){ return isP1Tagger() ? base : big; }
+
+    function forceRoles(p1Tagger){
+      count = p1Tagger ? 1 : 0;
+    }
+
     const tips = [
-      "Tip: Dash to cut corners, not just straight lines.",
-      "Tip: Shield blocks ONE tag — bait the tagger then escape.",
-      "Tip: Speed power-up is best for runners, but taggers can snowball too.",
-      "Tip: Drop a slow trap near a choke point to force mistakes.",
-      "Tip: If stamina is low, stop for a second to regen then sprint again.",
-      "Tip: In Longest Run, your ONE runner turn decides the match."
+      "Tip: Cut corners and use the middle blocks to juke.",
+      "Tip: Don’t run straight to the border—use pillars to reset distance.",
+      "Tip: Fake a direction change at the small squares—people over-commit.",
+      "Tip: If you get boxed, slide along obstacles instead of stopping.",
+      "Tip: Longest Run: each player gets ONE runner turn—make it count."
     ];
     function loadTip(){
       tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
     }
 
-    // =========================
-    // MENU UI
-    // =========================
     function updateModeUI(){
       modeLabel.textContent = (modeSel.value === "classic") ? "Classic" : "Longest Run";
       if(modeSel.value === "classic"){
-        modeDesc.innerHTML = `Classic: Survive <b>${roundTimeSel.value} seconds</b> as runner to score.<br/><b>First to ${winPtsSel.value}</b> wins → back to menu.`;
+        modeDesc.innerHTML = `Classic: Survive <b>20 seconds</b> as runner to score.<br/><b>First to 10</b> wins → back to menu.`;
       } else {
         modeDesc.innerHTML = `Longest Run: Two rounds total.<br/>Each player gets <b>one</b> runner turn. Highest time wins.`;
       }
-      matchLabel.textContent = `First to ${winPtsSel.value}`;
-      rtLabel.textContent = `${roundTimeSel.value}s`;
-      oppLabel.textContent = (oppSel.value === "ai") ? "Single Player" : "2 Players";
     }
-    modeSel.addEventListener("change", ()=>{ updateModeUI(); beep(520,0.03); });
-    oppSel.addEventListener("change", ()=>{ updateModeUI(); beep(520,0.03); });
-    winPtsSel.addEventListener("change", ()=>{ updateModeUI(); beep(520,0.03); });
-    roundTimeSel.addEventListener("change", ()=>{ updateModeUI(); beep(520,0.03); });
+    modeSel.addEventListener("change", ()=>{
+      updateModeUI();
+      beep(520, 0.03);
+    });
+    updateModeUI();
 
     function openMenu(){
       running = false;
       menu.style.display = "flex";
       loadTip();
 
-      // reset LR display
-      lrPhase = 0; lrP1Time = 0; lrP2Time = 0;
+      lrPhase = 0;
+      lrP1Time = 0;
+      lrP2Time = 0;
 
-      bannerText = "";
-      bannerTicks = 0;
-
-      beep(440,0.03); setTimeout(()=>beep(660,0.03), 70);
-    }
-
-    // =========================
-    // MATCH FLOW
-    // =========================
-    function resetPositions(){
-      p1.x = 30;  p1.y = 30;
-      p2.x = 740; p2.y = 740;
+      beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
     }
 
     function resetRound(swapRoles=true){
-      resetPositions();
+      p1.x = 30;  p1.y = 30;
+      p2.x = 740; p2.y = 740;
       if(swapRoles) count++;
       roundTicks = ROUND_TICKS;
-
-      // countdown 3..2..1..GO (3 seconds at 50fps)
-      countdown = 150;
-      countdownLabel = "3";
-
-      // powerups
-      power.alive = false;
-      power.respawn = 75; // ~1.5s after round start
-      traps = [];
     }
 
     function startClassic(){
       mode = "classic";
-      p1.score = 0; p2.score = 0;
+      p1.score = 0;
+      p2.score = 0;
       count = 0;
-      resetPlayerBuffs(p1);
-      resetPlayerBuffs(p2);
       resetRound(false);
     }
 
     function startLongest(){
       mode = "longest";
-      p1.score = 0; p2.score = 0;
-      resetPlayerBuffs(p1);
-      resetPlayerBuffs(p2);
+      p1.score = 0;
+      p2.score = 0;
 
       lrPhase = 1;
-      lrP1Time = 0; lrP2Time = 0;
+      lrP1Time = 0;
+      lrP2Time = 0;
 
       // Phase 1: P1 runner, P2 tagger
       forceRoles(false);
       resetRound(false);
-    }
-
-    function resetPlayerBuffs(p){
-      p.stamina = 100;
-      p.dashCd = 0;
-      p.dashTicks = 0;
-      p.speedBuff = 0;
-      p.shield = 0;
-      p.slowDebuff = 0;
-      p.ai.path = [];
-      p.ai.repath = 0;
-      p.ai.targetCell = null;
     }
 
     function endClassicToMenu(){
@@ -617,7 +436,6 @@
     function endLongestToMenu(){
       const p1Sec = (lrP1Time/50).toFixed(2);
       const p2Sec = (lrP2Time/50).toFixed(2);
-
       let msg = "";
       if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
       else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
@@ -629,18 +447,14 @@
     }
 
     function startGame(){
-      startMusic();
+      startMusic(); // 8-bit music
       running = true;
       menu.style.display = "none";
-      canvas.focus();
-
-      WIN_POINTS = Number(winPtsSel.value);
-      ROUND_TICKS = Number(roundTimeSel.value) * 50;
 
       if(modeSel.value === "classic") startClassic();
       else startLongest();
 
-      beep(880,0.04);
+      beep(880, 0.04);
     }
 
     playBtn.onclick = startGame;
@@ -648,319 +462,10 @@
     resetScoreBtn.onclick = ()=>{
       p1.score = 0; p2.score = 0;
       lrP1Time = 0; lrP2Time = 0; lrPhase = 0;
-      resetPlayerBuffs(p1); resetPlayerBuffs(p2);
-      beep(330,0.04); setTimeout(()=>beep(220,0.04), 60);
+      beep(330, 0.04);
+      setTimeout(()=>beep(220, 0.04), 60);
       tipBox.textContent = "Scores reset.";
     };
-
-    // secret
-    window.addEventListener("keydown", (e)=>{
-      if(!running && e.key.toLowerCase() === "m"){
-        tipBox.textContent = "👀 Secret found: Mcant Mode unlocked (it does nothing... yet).";
-        beep(990, 0.05); setTimeout(()=>beep(1320, 0.05), 70);
-      }
-    });
-
-    // =========================
-    // POWERUPS
-    // =========================
-    function spawnPowerup(){
-      // center-ish but avoid walls
-      const choices = [
-        {x: 400, y: 400},
-        {x: 400, y: 360},
-        {x: 400, y: 440},
-        {x: 360, y: 400},
-        {x: 440, y: 400},
-      ];
-      const pick = choices[Math.floor(Math.random()*choices.length)];
-      const types = [PWR.SPEED, PWR.SHIELD, PWR.TRAP];
-      power.type = types[Math.floor(Math.random()*types.length)];
-      power.x = pick.x - power.w/2;
-      power.y = pick.y - power.h/2;
-
-      // ensure not inside obstacle
-      const r = {x:power.x, y:power.y, w:power.w, h:power.h};
-      if(rectIntersectsAny(r)){
-        power.x = 400 - power.w/2;
-        power.y = 400 - power.h/2;
-      }
-      power.alive = true;
-    }
-
-    function applyPower(p, opponent){
-      if(power.type === PWR.SPEED){
-        p.speedBuff = 200; // 4s
-        sfxPickup();
-        banner(`SPEED!`, 45);
-      } else if(power.type === PWR.SHIELD){
-        p.shield = 1;
-        sfxPickup();
-        banner(`SHIELD!`, 45);
-      } else if(power.type === PWR.TRAP){
-        // drop a trap at pickup
-        traps.push({x: power.x + power.w/2, y: power.y + power.h/2, r: 46, ticks: 350, owner: (p === p1 ? 1 : 2)});
-        sfxPickup();
-        banner(`SLOW TRAP!`, 45);
-      }
-      power.alive = false;
-      power.respawn = 300; // 6s
-    }
-
-    function trapAffects(p, size){
-      // if player center inside any trap (not their own), apply slow debuff while inside
-      const cx = p.x + size/2;
-      const cy = p.y + size/2;
-      for(const t of traps){
-        const dx = cx - t.x;
-        const dy = cy - t.y;
-        const d2 = dx*dx + dy*dy;
-        if(d2 <= t.r*t.r){
-          // slow if trap not your own
-          const me = (p === p1 ? 1 : 2);
-          if(t.owner !== me) return true;
-        }
-      }
-      return false;
-    }
-
-    // =========================
-    // DASH + STAMINA
-    // =========================
-    const SPEED = 8;
-    const TAG_SPEED = SPEED + 1;
-    const TAG_REACH = 4;
-
-    function dashPressedForP1(){
-      return keys.has("shift");
-    }
-    function dashPressedForP2(){
-      return keys.has("enter");
-    }
-
-    function computeMoveSpeed(p, isTagger, inTrap){
-      let sp = isTagger ? TAG_SPEED : SPEED;
-
-      // stamina penalty
-      if(p.stamina < 20) sp *= 0.80;
-      if(p.stamina < 8)  sp *= 0.70;
-
-      // speed buff
-      if(p.speedBuff > 0) sp *= 1.20;
-
-      // trap slow
-      if(inTrap) sp *= 0.72;
-
-      // dash burst handled separately
-      return sp;
-    }
-
-    function tryDash(p, wantDash){
-      if(!wantDash) return false;
-      if(p.dashCd > 0 || p.dashTicks > 0) return false;
-      if(p.stamina < 18) return false;
-
-      p.dashTicks = 8;   // short burst
-      p.dashCd = 70;     // cooldown ~1.4s
-      p.stamina = Math.max(0, p.stamina - 18);
-      beep(880, 0.03);
-      return true;
-    }
-
-    // =========================
-    // AI (grid A* pathing + chase/flee)
-    // =========================
-    const AI_CELL = 40; // coarse grid
-    const AI_COLS = Math.floor(W / AI_CELL);
-    const AI_ROWS = Math.floor(H / AI_CELL);
-
-    function cellKey(c){ return c.cx + "," + c.cy; }
-
-    function toCellCenter(cx, cy){
-      return { x: cx*AI_CELL + AI_CELL/2, y: cy*AI_CELL + AI_CELL/2 };
-    }
-
-    function clampCell(cx, cy){
-      return { cx: Math.max(0, Math.min(AI_COLS-1, cx)), cy: Math.max(0, Math.min(AI_ROWS-1, cy)) };
-    }
-
-    function posToCell(x,y){
-      return clampCell(Math.floor(x / AI_CELL), Math.floor(y / AI_CELL));
-    }
-
-    function isCellWalkable(cx, cy, size){
-      const c = toCellCenter(cx, cy);
-      const r = { x: c.x - size/2, y: c.y - size/2, w: size, h: size };
-      if(r.x < 0 || r.y < 0 || r.x + r.w > W || r.y + r.h > H) return false;
-      return !rectIntersectsAny(r);
-    }
-
-    function aStar(start, goal, size){
-      // simple A* (4-neighbors)
-      const open = [];
-      const came = new Map();
-      const gScore = new Map();
-      const fScore = new Map();
-
-      const sk = cellKey(start);
-      gScore.set(sk, 0);
-      fScore.set(sk, manhattan(start, goal));
-      open.push({ ...start, f: fScore.get(sk) });
-
-      const closed = new Set();
-
-      while(open.length){
-        // pop lowest f
-        open.sort((a,b)=>a.f-b.f);
-        const cur = open.shift();
-        const ck = cellKey(cur);
-
-        if(cur.cx === goal.cx && cur.cy === goal.cy){
-          return reconstruct(came, cur);
-        }
-
-        closed.add(ck);
-
-        const nbrs = [
-          {cx: cur.cx+1, cy: cur.cy},
-          {cx: cur.cx-1, cy: cur.cy},
-          {cx: cur.cx, cy: cur.cy+1},
-          {cx: cur.cx, cy: cur.cy-1},
-        ];
-
-        for(let n of nbrs){
-          n = clampCell(n.cx, n.cy);
-          const nk = cellKey(n);
-          if(closed.has(nk)) continue;
-          if(!isCellWalkable(n.cx, n.cy, size)) continue;
-
-          const tentative = (gScore.get(ck) ?? 1e9) + 1;
-          if(tentative < (gScore.get(nk) ?? 1e9)){
-            came.set(nk, cur);
-            gScore.set(nk, tentative);
-            const f = tentative + manhattan(n, goal);
-            fScore.set(nk, f);
-
-            if(!open.some(o=>o.cx===n.cx && o.cy===n.cy)){
-              open.push({ ...n, f });
-            }
-          }
-        }
-      }
-      return []; // no path
-    }
-
-    function reconstruct(came, cur){
-      const path = [{cx:cur.cx, cy:cur.cy}];
-      let ck = cellKey(cur);
-      while(came.has(ck)){
-        const prev = came.get(ck);
-        path.push({cx:prev.cx, cy:prev.cy});
-        ck = cellKey(prev);
-      }
-      path.reverse();
-      return path;
-    }
-
-    function manhattan(a,b){ return Math.abs(a.cx-b.cx)+Math.abs(a.cy-b.cy); }
-
-    function aiChooseTarget(aiP, aiSize, isTagger, oppP, oppSize){
-      const aiC = posToCell(aiP.x + aiSize/2, aiP.y + aiSize/2);
-      const oppC = posToCell(oppP.x + oppSize/2, oppP.y + oppSize/2);
-
-      // candidate cells: corners + mid lanes
-      const candidates = [
-        {cx:1, cy:1},{cx:AI_COLS-2, cy:1},{cx:1, cy:AI_ROWS-2},{cx:AI_COLS-2, cy:AI_ROWS-2},
-        {cx:Math.floor(AI_COLS/2), cy:2},
-        {cx:Math.floor(AI_COLS/2), cy:AI_ROWS-3},
-        {cx:2, cy:Math.floor(AI_ROWS/2)},
-        {cx:AI_COLS-3, cy:Math.floor(AI_ROWS/2)},
-        // center-ish
-        {cx:Math.floor(AI_COLS/2), cy:Math.floor(AI_ROWS/2)},
-      ];
-
-      // include powerup if alive (runner tends to grab; tagger grabs if close)
-      if(power.alive){
-        const pc = posToCell(power.x + power.w/2, power.y + power.h/2);
-        candidates.push(pc);
-      }
-
-      // filter walkable
-      const walk = candidates.filter(c => isCellWalkable(c.cx, c.cy, aiSize));
-      if(!walk.length) return oppC;
-
-      if(isTagger){
-        // chase: target near opponent (or powerup if super close)
-        // choose cell that minimizes distance to opp
-        let best = walk[0], bestD = 1e9;
-        for(const c of walk){
-          const d = manhattan(c, oppC);
-          if(d < bestD){ bestD = d; best = c; }
-        }
-        return best;
-      } else {
-        // flee: maximize distance from opponent
-        let best = walk[0], bestD = -1;
-        for(const c of walk){
-          const d = manhattan(c, oppC);
-          if(d > bestD){ bestD = d; best = c; }
-        }
-        return best;
-      }
-    }
-
-    function aiMove(aiP, aiSize, isTagger, oppP, oppSize){
-      // repath frequently (but not every frame)
-      aiP.ai.repath--;
-      if(aiP.ai.repath <= 0 || aiP.ai.path.length < 2){
-        const aiC = posToCell(aiP.x + aiSize/2, aiP.y + aiSize/2);
-        const target = aiChooseTarget(aiP, aiSize, isTagger, oppP, oppSize);
-        aiP.ai.targetCell = target;
-        aiP.ai.path = aStar(aiC, target, aiSize);
-        aiP.ai.repath = 10; // ~5 times per second at 50fps
-      }
-
-      // follow next cell
-      let tx = oppP.x + oppSize/2;
-      let ty = oppP.y + oppSize/2;
-
-      if(aiP.ai.path && aiP.ai.path.length >= 2){
-        const next = aiP.ai.path[1];
-        const c = toCellCenter(next.cx, next.cy);
-        tx = c.x; ty = c.y;
-      }
-
-      // vector towards target
-      const cx = aiP.x + aiSize/2, cy = aiP.y + aiSize/2;
-      let vx = tx - cx, vy = ty - cy;
-      const mag = Math.hypot(vx, vy) || 1;
-      vx /= mag; vy /= mag;
-
-      // slight "juke" when runner and close
-      const dist = Math.hypot((oppP.x+oppSize/2)-cx, (oppP.y+oppSize/2)-cy);
-      if(!isTagger && dist < 160){
-        // perpendicular dodge
-        const jx = -vy, jy = vx;
-        const w = 0.55;
-        vx = vx*(1-w) + jx*w;
-        vy = vy*(1-w) + jy*w;
-      }
-
-      // dash logic
-      const threatened = (!isTagger && dist < 150);
-      const pounce = (isTagger && dist < 170);
-      tryDash(aiP, threatened || pounce);
-
-      return { ax: vx, ay: vy };
-    }
-
-    // =========================
-    // UPDATE LOOP
-    // =========================
-    function banner(text, ticks=40){
-      bannerText = text;
-      bannerTicks = ticks;
-    }
 
     function step(){
       update();
@@ -971,94 +476,30 @@
     function update(){
       if(!running) return;
 
-      // freeze moment
-      if(freezeTicks > 0){
-        freezeTicks--;
-        return;
-      }
-
       const p1Tag = isP1Tagger();
       const p1Size = sizeForP1();
       const p2Size = sizeForP2();
 
-      // countdown phase (no movement)
-      if(countdown > 0){
-        countdown--;
-        if(countdown === 100) { countdownLabel = "2"; beep(520,0.04); }
-        if(countdown === 50)  { countdownLabel = "1"; beep(520,0.04); }
-        if(countdown === 0)   { countdownLabel = "GO!"; beep(880,0.06); banner("GO!", 20); }
-        return;
-      }
+      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
+      const p2Speed = p1Tag ? SPEED : TAG_SPEED;
 
-      // decay buffs
-      tickPlayer(p1);
-      tickPlayer(p2);
-
-      // powerup timers
-      if(!power.alive){
-        power.respawn--;
-        if(power.respawn <= 0) spawnPowerup();
-      }
-
-      // trap timers
-      for(const t of traps) t.ticks--;
-      traps = traps.filter(t=>t.ticks > 0);
-
-      // movement input or AI
-      const aiEnabled = (oppSel.value === "ai");
-
-      // speeds (stamina/buffs/traps)
-      const p1InTrap = trapAffects(p1, p1Size);
-      const p2InTrap = trapAffects(p2, p2Size);
-
-      let p1Speed = computeMoveSpeed(p1, p1Tag, p1InTrap);
-      let p2Speed = computeMoveSpeed(p2, !p1Tag, p2InTrap);
-
-      // dash adds extra speed for a few ticks
-      if(p1.dashTicks > 0) p1Speed *= 1.85;
-      if(p2.dashTicks > 0) p2Speed *= 1.85;
-
-      // P1 move
+      // P1 (WASD)
       let p1dx = 0, p1dy = 0;
       if(keys.has("w")) p1dy -= p1Speed;
       if(keys.has("s")) p1dy += p1Speed;
       if(keys.has("a")) p1dx -= p1Speed;
       if(keys.has("d")) p1dx += p1Speed;
-
-      // P1 dash trigger (shift)
-      tryDash(p1, dashPressedForP1());
-
-      // P2 move OR AI
-      let p2dx = 0, p2dy = 0;
-
-      if(aiEnabled){
-        const p2IsTagger = !p1Tag; // because p1Tag implies p2 runner; inverse
-        const steer = aiMove(p2, p2Size, p2IsTagger, p1, p1Size);
-        p2dx = steer.ax * p2Speed;
-        p2dy = steer.ay * p2Speed;
-      } else {
-        if(keys.has("arrowup")) p2dy -= p2Speed;
-        if(keys.has("arrowdown")) p2dy += p2Speed;
-        if(keys.has("arrowleft")) p2dx -= p2Speed;
-        if(keys.has("arrowright")) p2dx += p2Speed;
-        tryDash(p2, dashPressedForP2());
-      }
-
-      // move players
       slideMove(p1, p1dx, p1dy, p1Size);
+
+      // P2 (Arrows)
+      let p2dx = 0, p2dy = 0;
+      if(keys.has("arrowup")) p2dy -= p2Speed;
+      if(keys.has("arrowdown")) p2dy += p2Speed;
+      if(keys.has("arrowleft")) p2dx -= p2Speed;
+      if(keys.has("arrowright")) p2dx += p2Speed;
       slideMove(p2, p2dx, p2dy, p2Size);
 
-      // round timer
       if(roundTicks > 0) roundTicks--;
-
-      // powerup pickup checks
-      if(power.alive){
-        const pr = {x:power.x, y:power.y, w:power.w, h:power.h};
-        const r1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
-        const r2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
-        if(rectsIntersect(r1, pr)) applyPower(p1, p2);
-        else if(rectsIntersect(r2, pr)) applyPower(p2, p1);
-      }
 
       // tag check with reach buff
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
@@ -1072,113 +513,52 @@
 
       const tagged = rectsIntersect(hb1, hb2);
 
-      // resolve outcomes
       if(mode === "classic"){
         if(tagged){
-          // shield check: runner gets saved once
-          const runner = p1Tag ? p2 : p1;
-          const runnerName = p1Tag ? "P2" : "P1";
-          if(runner.shield > 0){
-            runner.shield = 0;
-            sfxShieldPop();
-            banner(`${runnerName} SHIELD!`, 35);
-            freezeTicks = 8;
-            shakeTicks = 10;
-          } else {
-            onTag(p1Tag);
+          if(p1Tag) p1.score++; else p2.score++;
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
           }
+          resetRound(true);
         } else if(roundTicks <= 0){
-          onSurvive(p1Tag);
+          if(p1Tag) p2.score++; else p1.score++;
+          beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
+
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
+          }
+          resetRound(true);
         }
       } else {
-        // Longest Run mode
+        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
         const p1Runner = !p1Tag;
         const p2Runner = p1Tag;
 
         if(lrPhase === 1 && p1Runner) lrP1Time++;
         if(lrPhase === 2 && p2Runner) lrP2Time++;
 
-        if(tagged){
-          const runner = p1Tag ? p2 : p1;
-          if(runner.shield > 0){
-            runner.shield = 0;
-            sfxShieldPop();
-            banner(`SHIELD!`, 35);
-            freezeTicks = 8;
-            shakeTicks = 10;
-          } else {
-            onLongestEndRound();
+        if(tagged || roundTicks <= 0){
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(lrPhase === 1){
+            lrPhase = 2;
+            // Phase 2: P2 runner, P1 tagger
+            forceRoles(true);
+            resetRound(false);
+          } else if(lrPhase === 2){
+            lrPhase = 3;
+            endLongestToMenu();
           }
-        } else if(roundTicks <= 0){
-          onLongestEndRound();
         }
       }
     }
 
-    function tickPlayer(p){
-      // dash timers
-      if(p.dashCd > 0) p.dashCd--;
-      if(p.dashTicks > 0) p.dashTicks--;
-
-      if(p.speedBuff > 0) p.speedBuff--;
-      if(p.slowDebuff > 0) p.slowDebuff--;
-
-      // stamina: drain if moving, regen if not
-      // (we approximate using key states for humans; AI always “moving” when it chooses to)
-      // We'll handle drain in update using last frame movement effect: simpler:
-      // -> drain if dash active, else drain slowly while round active.
-      if(p.dashTicks > 0) p.stamina = Math.max(0, p.stamina - 0.9);
-      else p.stamina = Math.min(100, p.stamina + 0.35);
-    }
-
-    function onTag(p1IsTagger){
-      // score tagger
-      if(p1IsTagger) p1.score++; else p2.score++;
-
-      sfxTag();
-      shakeTicks = 16;
-      freezeTicks = 10;
-      banner("TAG!", 28);
-
-      if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-        endClassicToMenu();
-        return;
-      }
-      resetRound(true);
-    }
-
-    function onSurvive(p1IsTagger){
-      // runner scores
-      if(p1IsTagger) p2.score++; else p1.score++;
-      beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
-      banner("SURVIVED!", 26);
-
-      if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-        endClassicToMenu();
-        return;
-      }
-      resetRound(true);
-    }
-
-    function onLongestEndRound(){
-      sfxTag();
-      shakeTicks = 14;
-      freezeTicks = 8;
-
-      if(lrPhase === 1){
-        lrPhase = 2;
-        // Phase 2: P2 runner, P1 tagger
-        forceRoles(true);
-        resetRound(false);
-      } else if(lrPhase === 2){
-        lrPhase = 3;
-        endLongestToMenu();
-      }
-    }
-
-    // =========================
-    // DRAW
-    // =========================
     function draw(){
       let sx = 0, sy = 0;
       if(shakeTicks > 0){
@@ -1191,12 +571,10 @@
       g.clearRect(0,0,W,H);
       g.setTransform(1,0,0,1,sx,sy);
 
-      // background grid
-      if(togGrid.checked){
-        g.strokeStyle = "rgb(25,25,25)";
-        for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
-        for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
-      }
+      // grid
+      g.strokeStyle = "rgb(25,25,25)";
+      for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+      for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
 
       // obstacles
       g.fillStyle = "rgb(0,180,255)";
@@ -1206,56 +584,22 @@
         g.strokeRect(r.x,r.y,r.w,r.h);
       }
 
-      // traps
-      for(const t of traps){
-        g.beginPath();
-        g.arc(t.x, t.y, t.r, 0, Math.PI*2);
-        g.fillStyle = "rgba(0,180,255,0.12)";
-        g.fill();
-        g.strokeStyle = "rgba(255,255,255,0.25)";
-        g.stroke();
-      }
-
-      // powerup
-      if(power.alive){
-        const col = (power.type === PWR.SPEED) ? "rgba(255,212,0,0.95)" :
-                    (power.type === PWR.SHIELD) ? "rgba(180,255,255,0.95)" :
-                    "rgba(255,120,0,0.95)";
-        g.fillStyle = col;
-        g.fillRect(power.x, power.y, power.w, power.h);
-        g.strokeStyle = "#111";
-        g.strokeRect(power.x, power.y, power.w, power.h);
-      }
-
       // players
       const p1Tag = isP1Tagger();
       const p1Size = sizeForP1();
       const p2Size = sizeForP2();
 
-      const cb = togCB.checked;
-      const P1_TAG = cb ? "#ffb000" : "red";
-      const P2_TAG = cb ? "#ffb000" : "red";
-      const RUNNER = "white";
-
-      g.fillStyle = p1Tag ? P1_TAG : RUNNER;
+      g.fillStyle = p1Tag ? "red" : "white";
       g.fillRect(p1.x, p1.y, p1Size, p1Size);
 
-      g.fillStyle = p1Tag ? RUNNER : P2_TAG;
+      g.fillStyle = p1Tag ? "white" : "red";
       g.fillRect(p2.x, p2.y, p2Size, p2Size);
-
-      // shields visual
-      if(p1.shield){
-        ring(p1.x+p1Size/2, p1.y+p1Size/2, p1Size*0.72, "rgba(180,255,255,0.85)");
-      }
-      if(p2.shield){
-        ring(p2.x+p2Size/2, p2.y+p2Size/2, p2Size*0.72, "rgba(180,255,255,0.85)");
-      }
 
       // border
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // HUD
+      // text
       const secondsLeft = Math.ceil(roundTicks / 50);
 
       g.fillStyle = "white";
@@ -1282,87 +626,13 @@
       g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
       g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
 
-      // stamina + dash HUD
-      drawBars();
-
-      // countdown overlay
-      if(countdown > 0 || countdownLabel === "GO!"){
-        const show = (countdown > 0) ? countdownLabel : "GO!";
-        g.font = "72px system-ui, Arial";
-        g.fillStyle = "rgba(255,255,255,0.95)";
-        g.textAlign = "center";
-        g.fillText(show, W/2, H/2);
-        g.textAlign = "left";
-        if(countdown === 0) countdownLabel = "";
-      }
-
-      // banner
-      if(bannerTicks > 0){
-        bannerTicks--;
-        g.font = "44px system-ui, Arial";
-        g.fillStyle = "rgba(255,212,0,0.95)";
-        g.textAlign = "center";
-        g.fillText(bannerText, W/2, 120);
-        g.textAlign = "left";
-      }
-
-      // footer
       g.font = "12px system-ui, Arial";
-      g.fillStyle = "white";
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
     }
 
-    function ring(x,y,r, col){
-      g.beginPath();
-      g.arc(x,y,r,0,Math.PI*2);
-      g.strokeStyle = col;
-      g.lineWidth = 3;
-      g.stroke();
-      g.lineWidth = 1;
-    }
-
-    function drawBars(){
-      // P1 bars
-      g.font = "12px system-ui, Arial";
-      g.fillStyle = "white";
-
-      // stamina
-      bar(14, 70, 120, 8, p1.stamina/100, "rgba(255,255,255,0.85)");
-      g.fillText("STA", 14, 66);
-
-      // dash cd
-      const p1cd = Math.min(1, (p1.dashCd/70));
-      bar(14, 88, 120, 6, 1 - p1cd, "rgba(0,180,255,0.85)");
-      g.fillText("DASH", 14, 103);
-
-      // P2 bars
-      bar(W-14-120, 70, 120, 8, p2.stamina/100, "rgba(255,255,255,0.85)");
-      g.fillText("STA", W-14-120, 66);
-
-      const p2cd = Math.min(1, (p2.dashCd/70));
-      bar(W-14-120, 88, 120, 6, 1 - p2cd, "rgba(0,180,255,0.85)");
-      g.fillText("DASH", W-14-120, 103);
-    }
-
-    function bar(x,y,w,h, pct, col){
-      pct = Math.max(0, Math.min(1, pct));
-      g.fillStyle = "rgba(0,0,0,0.35)";
-      g.fillRect(x,y,w,h);
-      g.fillStyle = col;
-      g.fillRect(x,y,w*pct,h);
-      g.strokeStyle = "rgba(255,255,255,0.25)";
-      g.strokeRect(x+0.5,y+0.5,w-1,h-1);
-    }
-
-    // =========================
-    // START
-    // =========================
-    function init(){
-      updateModeUI();
-      openMenu();
-      requestAnimationFrame(step);
-    }
-    init();
+    // start menu + loop
+    openMenu();
+    requestAnimationFrame(step);
   </script>
 </body>
 </html>
