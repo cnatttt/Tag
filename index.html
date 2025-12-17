@@ -159,26 +159,34 @@
     const W = canvas.width, H = canvas.height;
 
     // =========================
-    // SOUND (beeps + 8-bit background music)
+    // SOUND (beeps + 8-bit background music + portal SFX)
     // =========================
     let volume = 0.70;
 
-    const music = {
+    const audio = {
       ctx: null,
-      master: null,
-      running: false,
+      musicMaster: null,
+      sfxMaster: null,
+      musicRunning: false,
       step: 0,
       timer: null
     };
 
     function ensureAudio(){
-      if(music.ctx) return;
+      if(audio.ctx) return;
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if(!AudioCtx) return;
-      music.ctx = new AudioCtx();
-      music.master = music.ctx.createGain();
-      music.master.gain.value = Math.max(0.0001, volume * 0.06);
-      music.master.connect(music.ctx.destination);
+
+      audio.ctx = new AudioCtx();
+
+      audio.musicMaster = audio.ctx.createGain();
+      audio.sfxMaster = audio.ctx.createGain();
+
+      audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
+      audio.sfxMaster.gain.value = Math.max(0.0001, volume * 0.10);
+
+      audio.musicMaster.connect(audio.ctx.destination);
+      audio.sfxMaster.connect(audio.ctx.destination);
     }
 
     function hzFromMidi(m){
@@ -187,14 +195,12 @@
 
     function beep(freq=440, dur=0.04){
       if(volume <= 0) return;
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if(!AudioCtx) return;
       ensureAudio();
-      if(!music.ctx) return;
+      if(!audio.ctx) return;
 
-      const t = music.ctx.currentTime;
-      const o = music.ctx.createOscillator();
-      const gain = music.ctx.createGain();
+      const t = audio.ctx.currentTime;
+      const o = audio.ctx.createOscillator();
+      const gain = audio.ctx.createGain();
 
       o.type = "square";
       o.frequency.setValueAtTime(freq, t);
@@ -202,78 +208,97 @@
       gain.gain.setValueAtTime(Math.max(0.0001, volume * 0.08), t);
 
       o.connect(gain);
-      gain.connect(music.ctx.destination);
+      gain.connect(audio.ctx.destination);
 
       o.start(t);
       o.stop(t + dur);
     }
 
     function playMusicNote(freq, dur, amp=0.22){
-      if(!music.running || !music.ctx || !music.master) return;
+      if(!audio.musicRunning || !audio.ctx || !audio.musicMaster) return;
 
-      const t = music.ctx.currentTime;
-      const o = music.ctx.createOscillator();
-      const eg = music.ctx.createGain();
+      const t = audio.ctx.currentTime;
+      const o = audio.ctx.createOscillator();
+      const eg = audio.ctx.createGain();
 
       o.type = "square";
       o.frequency.setValueAtTime(freq, t);
 
-      // quick envelope so it doesn't click
       eg.gain.setValueAtTime(0.0001, t);
       eg.gain.linearRampToValueAtTime(amp, t + 0.01);
       eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
       o.connect(eg);
-      eg.connect(music.master);
+      eg.connect(audio.musicMaster);
 
       o.start(t);
       o.stop(t + dur + 0.02);
     }
 
-    // A slightly richer 8-bit loop (lead + bass + tiny harmony "sparkle")
     function startMusic(){
       ensureAudio();
-      if(!music.ctx || music.running) return;
+      if(!audio.ctx || audio.musicRunning) return;
 
-      music.running = true;
-      music.step = 0;
+      audio.musicRunning = true;
+      audio.step = 0;
 
       const bass = [36,36,43,43,41,41,38,38, 36,36,43,43,41,41,38,38];
       const lead = [60,62,64,67, 64,62,60,62, 64,67,69,67, 64,62,60,57];
       const sparkle = [72, null, 74, null, 76, null, 79, null, 76, null, 74, null, 72, null, 69, null];
 
-      const stepMs = 120; // tempo
-      music.timer = setInterval(() => {
-        if(music.master) music.master.gain.value = Math.max(0.0001, volume * 0.06);
+      const stepMs = 120;
+      audio.timer = setInterval(() => {
+        if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
+        if(audio.sfxMaster)   audio.sfxMaster.gain.value   = Math.max(0.0001, volume * 0.10);
 
-        const i = music.step % lead.length;
+        const i = audio.step % lead.length;
 
-        // bass every other step
-        if((music.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
-
-        // lead
+        if((audio.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
         playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
 
-        // sparkle occasionally
-        const s = sparkle[music.step % sparkle.length];
-        if(s != null && (music.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
+        const s = sparkle[audio.step % sparkle.length];
+        if(s != null && (audio.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
 
-        music.step++;
+        audio.step++;
       }, stepMs);
     }
 
-    function stopMusic(){
-      music.running = false;
-      if(music.timer){ clearInterval(music.timer); music.timer = null; }
+    // Portal SFX: quick "whoosh" (square + pitch drop)
+    function portalSfx(){
+      if(volume <= 0) return;
+      ensureAudio();
+      if(!audio.ctx || !audio.sfxMaster) return;
+
+      const t = audio.ctx.currentTime;
+
+      const o = audio.ctx.createOscillator();
+      const g1 = audio.ctx.createGain();
+
+      o.type = "square";
+      o.frequency.setValueAtTime(1200, t);
+      o.frequency.exponentialRampToValueAtTime(260, t + 0.09);
+
+      g1.gain.setValueAtTime(0.0001, t);
+      g1.gain.linearRampToValueAtTime(Math.max(0.0001, volume * 0.22), t + 0.01);
+      g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.10);
+
+      o.connect(g1);
+      g1.connect(audio.sfxMaster);
+
+      o.start(t);
+      o.stop(t + 0.12);
     }
 
-    // browsers block autoplay, so unlock music on first gesture
+    // unlock audio on first gesture
     window.addEventListener("pointerdown", startMusic, {once:false});
     window.addEventListener("keydown", startMusic, {once:false});
 
     vol.addEventListener("input", () => {
       volume = Number(vol.value) / 100;
       volLabel.textContent = Math.round(volume * 100) + "%";
+      // update masters immediately if already created
+      if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
+      if(audio.sfxMaster)   audio.sfxMaster.gain.value   = Math.max(0.0001, volume * 0.10);
       beep(660, 0.03);
     });
 
@@ -307,23 +332,59 @@
       return false;
     }
 
-    function tryMove(x, y, dx, dy, size){
+    // =========================
+    // PORTALS (LEFT/RIGHT ONLY) + collision
+    // - if you walk off left, appear right
+    // - if you walk off right, appear left
+    // - plays portal sound + tiny flash
+    // =========================
+    let portalFlashL = 0;
+    let portalFlashR = 0;
+
+    function tryMove(x, y, dx, dy, size, who=""){
       let nx = x, ny = y;
 
+      // move X first, with wall collision
       nx += dx;
       let testX = {x:nx, y:y, w:size, h:size};
       if(rectIntersectsAny(testX)) nx = x;
 
+      // LEFT/RIGHT PORTAL WRAP
+      if(nx < 0){
+        const cand = W - size;
+        const test = {x:cand, y:y, w:size, h:size};
+        if(!rectIntersectsAny(test)){
+          nx = cand;
+          portalSfx();
+          portalFlashL = 10;
+        } else {
+          nx = 0;
+        }
+      } else if(nx > W - size){
+        const cand = 0;
+        const test = {x:cand, y:y, w:size, h:size};
+        if(!rectIntersectsAny(test)){
+          nx = cand;
+          portalSfx();
+          portalFlashR = 10;
+        } else {
+          nx = W - size;
+        }
+      }
+
+      // move Y second, with wall collision (NO top/bottom portal)
       ny += dy;
       let testY = {x:nx, y:ny, w:size, h:size};
       if(rectIntersectsAny(testY)) ny = y;
 
-      nx = Math.max(0, Math.min(W - size, nx));
+      // clamp Y only
       ny = Math.max(0, Math.min(H - size, ny));
+
       return {x:nx, y:ny};
     }
-    function slideMove(p, dx, dy, size){
-      const nxt = tryMove(p.x, p.y, dx, dy, size);
+
+    function slideMove(p, dx, dy, size, who=""){
+      const nxt = tryMove(p.x, p.y, dx, dy, size, who);
       p.x = nxt.x; p.y = nxt.y;
     }
 
@@ -373,6 +434,7 @@
     }
 
     const tips = [
+      "Tip: Use the LEFT/RIGHT portals to fake out the tagger.",
       "Tip: As tagger, cut corners instead of following directly.",
       "Tip: Don’t run straight to the border—use pillars to juke.",
       "Tip: Runner route idea: top gap → center → side bumper → repeat.",
@@ -403,7 +465,6 @@
       menu.style.display = "flex";
       loadTip();
 
-      // reset LR state display (not scores)
       lrPhase = 0;
       lrP1Time = 0;
       lrP2Time = 0;
@@ -416,6 +477,9 @@
       p2.x = 740; p2.y = 740;
       if(swapRoles) count++;
       roundTicks = ROUND_TICKS;
+
+      portalFlashL = 0;
+      portalFlashR = 0;
     }
 
     function startClassic(){
@@ -511,7 +575,7 @@
       if(keys.has("s")) p1dy += p1Speed;
       if(keys.has("a")) p1dx -= p1Speed;
       if(keys.has("d")) p1dx += p1Speed;
-      slideMove(p1, p1dx, p1dy, p1Size);
+      slideMove(p1, p1dx, p1dy, p1Size, "p1");
 
       // P2 (Arrows)
       let p2dx = 0, p2dy = 0;
@@ -519,7 +583,7 @@
       if(keys.has("arrowdown")) p2dy += p2Speed;
       if(keys.has("arrowleft")) p2dx -= p2Speed;
       if(keys.has("arrowright")) p2dx += p2Speed;
-      slideMove(p2, p2dx, p2dy, p2Size);
+      slideMove(p2, p2dx, p2dy, p2Size, "p2");
 
       if(roundTicks > 0) roundTicks--;
 
@@ -557,7 +621,6 @@
           resetRound(true);
         }
       } else {
-        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
         const p1Runner = !p1Tag;
         const p2Runner = p1Tag;
 
@@ -570,8 +633,7 @@
 
           if(lrPhase === 1){
             lrPhase = 2;
-            // Phase 2: P2 runner, P1 tagger
-            forceRoles(true);
+            forceRoles(true);   // Phase 2: P1 tagger, P2 runner
             resetRound(false);
           } else if(lrPhase === 2){
             lrPhase = 3;
@@ -604,6 +666,18 @@
       for(const r of obs){
         g.fillRect(r.x,r.y,r.w,r.h);
         g.strokeRect(r.x,r.y,r.w,r.h);
+      }
+
+      // portal flashes (left/right edges)
+      if(portalFlashL > 0){
+        portalFlashL--;
+        g.fillStyle = `rgba(0,180,255,${portalFlashL/10})`;
+        g.fillRect(0, 0, 8, H);
+      }
+      if(portalFlashR > 0){
+        portalFlashR--;
+        g.fillStyle = `rgba(0,180,255,${portalFlashR/10})`;
+        g.fillRect(W-8, 0, 8, H);
       }
 
       // players
