@@ -9,7 +9,6 @@
     .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
     canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; }
 
-    /* Menu */
     .ui {
       position: fixed; inset: 0;
       display:flex; align-items:center; justify-content:center;
@@ -75,6 +74,25 @@
       border: 1px solid rgba(255,212,0,.25);
       background: rgba(255,212,0,.06);
     }
+
+    .modeBox{
+      flex: 1 1 220px;
+      border: 2px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.04);
+    }
+    .modeBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; margin-bottom:6px; }
+    select{
+      width:100%;
+      padding:10px 10px;
+      border-radius:10px;
+      border:2px solid rgba(0,180,255,.25);
+      background: rgba(18,18,50,.9);
+      color:#fff;
+      font-weight:800;
+      outline:none;
+    }
   </style>
 </head>
 <body>
@@ -90,12 +108,23 @@
       <p class="dev">Dev: Mcant</p>
       <p class="sub">
         2 players only. Tagger is slightly faster + small reach buff.
-        Survive <b>20 seconds</b> as runner to score.
+        Survive <b>20 seconds</b> as runner to score (Classic).
       </p>
 
       <div class="row">
         <button id="play">PLAY</button>
         <button id="resetScore">RESET SCORE</button>
+
+        <div class="modeBox">
+          <label>
+            <span>Game Mode</span>
+            <span id="modeLabel">Classic</span>
+          </label>
+          <select id="mode">
+            <option value="classic" selected>Classic</option>
+            <option value="longest">Longest Run (2 rounds)</option>
+          </select>
+        </div>
 
         <div class="sliderBox">
           <label>
@@ -127,9 +156,12 @@
     const volLabel = document.getElementById("volLabel");
     const tipBox = document.getElementById("tipBox");
 
+    const modeSel = document.getElementById("mode");
+    const modeLabel = document.getElementById("modeLabel");
+
     const W = canvas.width, H = canvas.height;
 
-    // --- Sound (tiny UI beeps) ---
+    // --- Sound ---
     let volume = 0.70;
     vol.addEventListener("input", () => {
       volume = Number(vol.value) / 100;
@@ -152,6 +184,11 @@
       o.start();
       o.stop(ctx.currentTime + dur);
     }
+
+    modeSel.addEventListener("change", ()=>{
+      modeLabel.textContent = (modeSel.value === "classic") ? "Classic" : "Longest Run";
+      beep(520, 0.03);
+    });
 
     // ---------- MAP / OBSTACLES ----------
     const obs = [
@@ -191,17 +228,14 @@
     function tryMove(x, y, dx, dy, size){
       let nx = x, ny = y;
 
-      // X slide
       nx += dx;
       let testX = {x:nx, y:y, w:size, h:size};
       if(rectIntersectsAny(testX)) nx = x;
 
-      // Y slide
       ny += dy;
       let testY = {x:nx, y:ny, w:size, h:size};
       if(rectIntersectsAny(testY)) ny = y;
 
-      // clamp
       nx = Math.max(0, Math.min(W - size, nx));
       ny = Math.max(0, Math.min(H - size, ny));
 
@@ -221,10 +255,9 @@
     // P2 bottom-right (arrows)
     const p2 = { x:740, y:740, score:0 };
 
-    // count%2==0 => P2 is big (tagger); count%2==1 => P1 is big (tagger)
     let count = 0;
 
-    // ✅ 20 seconds @ 50 ticks/sec
+    // 20 seconds @ 50 ticks/sec
     const ROUND_TICKS = 1000;
     let roundTicks = ROUND_TICKS;
 
@@ -233,6 +266,13 @@
     const TAG_REACH = 4;
 
     let running = false;
+
+    // Longest Run mode tracking
+    // two turns total: (1) P1 runner, (2) P2 runner
+    let mode = "classic";
+    let lrPhase = 0; // 0=not running, 1=P1 runner, 2=P2 runner, 3=done
+    let lrP1Time = 0; // ticks survived as runner
+    let lrP2Time = 0;
 
     const keys = new Set();
     window.addEventListener("keydown", (e)=>{
@@ -246,18 +286,35 @@
     function sizeForP1(){ return isP1Tagger() ? big : base; }
     function sizeForP2(){ return isP1Tagger() ? base : big; }
 
+    function forceRoles(p1Tagger){
+      // count%2==1 => P1 tagger, count%2==0 => P2 tagger
+      count = p1Tagger ? 1 : 0;
+    }
+
     function openMenu(){
       running = false;
       menu.style.display = "flex";
       loadTip();
-      // surprise: soft menu beep pattern
+
+      // reset longest-run mode state when leaving game
+      lrPhase = 0;
+      lrP1Time = 0;
+      lrP2Time = 0;
+
       beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
     }
 
     function startGame(){
+      mode = modeSel.value; // "classic" or "longest"
       running = true;
       menu.style.display = "none";
-      resetRound(false);
+
+      if(mode === "classic"){
+        resetRound(false);
+      } else {
+        startLongestRun();
+      }
+
       beep(880, 0.04);
     }
 
@@ -268,6 +325,34 @@
       roundTicks = ROUND_TICKS;
     }
 
+    function startLongestRun(){
+      // Round 1: P1 runner, P2 tagger
+      lrPhase = 1;
+      lrP1Time = 0;
+      lrP2Time = 0;
+
+      // P2 tagger => count even
+      forceRoles(false);
+
+      resetRound(false);
+    }
+
+    function endLongestRunAndReturn(){
+      // Decide winner
+      const p1Sec = (lrP1Time/50).toFixed(2);
+      const p2Sec = (lrP2Time/50).toFixed(2);
+
+      let msg = "";
+      if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+
+      // show it on menu tip box
+      openMenu();
+      tipBox.textContent = "🏁 Longest Run Results: " + msg;
+      beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
+    }
+
     playBtn.onclick = startGame;
 
     resetScoreBtn.onclick = ()=>{
@@ -276,10 +361,9 @@
       setTimeout(()=>beep(220, 0.04), 60);
     };
 
-    // --- Surprise stuff: secret key + tiny shake on tag ---
+    // Secret
     let shakeTicks = 0;
     window.addEventListener("keydown", (e)=>{
-      // Secret: press "M" on menu for a surprise message + sound
       if(!running && e.key.toLowerCase() === "m"){
         tipBox.textContent = "👀 Secret found: Mcant Mode unlocked (it does nothing... yet).";
         beep(990, 0.05); setTimeout(()=>beep(1320, 0.05), 70);
@@ -287,17 +371,17 @@
     });
 
     const tips = [
-      "Tip: As tagger, try cutting corners instead of following directly.",
+      "Tip: As tagger, cut corners instead of following directly.",
       "Tip: Don’t run straight to the border—use pillars to juke.",
-      "Tip: If you’re runner, keep a route in your head: top gap → center → side bumper.",
-      "Tip: Fake a direction change at the pillars. People over-commit.",
+      "Tip: Runner route idea: top gap → center → side bumper → repeat.",
+      "Tip: Fake a direction change at the pillars—people over-commit.",
       "Tip: If you get boxed, slide along obstacles instead of stopping.",
+      "Tip: Longest Run mode: each player gets ONE runner turn—make it count."
     ];
     function loadTip(){
       tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
     }
 
-    // ---------- LOOP ----------
     function step(){
       update();
       draw();
@@ -314,7 +398,7 @@
       const p1Speed = p1Tag ? TAG_SPEED : SPEED;
       const p2Speed = p1Tag ? SPEED : TAG_SPEED;
 
-      // P1 (WASD)
+      // P1
       let p1dx = 0, p1dy = 0;
       if(keys.has("w")) p1dy -= p1Speed;
       if(keys.has("s")) p1dy += p1Speed;
@@ -322,7 +406,7 @@
       if(keys.has("d")) p1dx += p1Speed;
       slideMove(p1, p1dx, p1dy, p1Size);
 
-      // P2 (Arrows)
+      // P2
       let p2dx = 0, p2dy = 0;
       if(keys.has("arrowup")) p2dy -= p2Speed;
       if(keys.has("arrowdown")) p2dy += p2Speed;
@@ -332,6 +416,15 @@
 
       // timer
       if(roundTicks > 0) roundTicks--;
+
+      // Longest Run survival tracking
+      if(mode === "longest"){
+        // runner is opposite of tagger
+        const p1Runner = !p1Tag;
+        if(lrPhase === 1 && p1Runner) lrP1Time++; // P1 runner round
+        if(lrPhase === 2 && p1Runner) lrP2Time++; // in phase2, P1 is tagger, so runner is P2
+        if(lrPhase === 2 && !p1Runner) lrP2Time++; // <-- this line is wrong if left, so we handle below cleanly
+      }
 
       // tag check with reach buff
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
@@ -345,21 +438,55 @@
 
       const tagged = rectsIntersect(hb1, hb2);
 
-      if(tagged){
-        if(p1Tag) p1.score++; else p2.score++;
-        shakeTicks = 14; // surprise: tiny shake on tag
-        beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
-        resetRound(true);
-      } else if(roundTicks <= 0){
-        // runner scores
-        if(p1Tag) p2.score++; else p1.score++;
-        beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
-        resetRound(true);
+      if(mode === "classic"){
+        if(tagged){
+          if(p1Tag) p1.score++; else p2.score++;
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+          resetRound(true);
+        } else if(roundTicks <= 0){
+          if(p1Tag) p2.score++; else p1.score++;
+          beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
+          resetRound(true);
+        }
+      } else {
+        // Longest Run mode logic:
+        // Phase 1: P1 runner (P2 tagger)
+        // Phase 2: P2 runner (P1 tagger)
+        // End after both are done -> back to menu
+
+        // record survival time properly:
+        const p1Runner = !p1Tag;
+        const p2Runner = p1Tag;
+
+        if(lrPhase === 1){
+          // in phase 1, P1 should be runner
+          if(p1Runner) lrP1Time++;
+        }
+        if(lrPhase === 2){
+          // in phase 2, P2 should be runner
+          if(p2Runner) lrP2Time++;
+        }
+
+        if(tagged || roundTicks <= 0){
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(lrPhase === 1){
+            // move to phase 2: P2 runner, P1 tagger
+            lrPhase = 2;
+            forceRoles(true); // P1 tagger => count odd
+            resetRound(false);
+          } else if(lrPhase === 2){
+            lrPhase = 3;
+            endLongestRunAndReturn();
+          }
+        }
       }
     }
 
     function draw(){
-      // tiny shake effect (surprise)
+      // shake
       let sx = 0, sy = 0;
       if(shakeTicks > 0){
         shakeTicks--;
@@ -371,7 +498,7 @@
       g.clearRect(0,0,W,H);
       g.setTransform(1,0,0,1,sx,sy);
 
-      // background grid
+      // grid
       g.strokeStyle = "rgb(25,25,25)";
       for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
       for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
@@ -399,7 +526,7 @@
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // UI text
+      // UI
       const secondsLeft = Math.ceil(roundTicks / 50);
 
       g.fillStyle = "white";
@@ -412,11 +539,22 @@
       g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
       g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
 
+      // Longest-run HUD
+      if(mode === "longest"){
+        const p1Sec = (lrP1Time/50).toFixed(2);
+        const p2Sec = (lrP2Time/50).toFixed(2);
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Longest Run Mode`, (W/2)-55, 44);
+        g.fillText(`P1 best: ${p1Sec}s`, 14, 62);
+        g.fillText(`P2 best: ${p2Sec}s`, W-120, 62);
+        g.fillText(`Round: ${lrPhase}/2`, (W/2)-30, 62);
+      }
+
       g.font = "12px system-ui, Arial";
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
     }
 
-    // Start on menu
+    // Start menu + loop
     openMenu();
     requestAnimationFrame(step);
   </script>
