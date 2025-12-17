@@ -53,15 +53,27 @@
     button:hover { background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
     button:active { transform: translateY(1px); }
 
-    .sliderBox {
+    .sliderBox, .modeBox {
       flex: 1 1 220px;
       border: 2px solid rgba(255,255,255,.12);
       border-radius: 12px;
       padding: 10px 12px;
       background: rgba(255,255,255,.04);
     }
-    .sliderBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
+    .sliderBox label, .modeBox label { display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
     input[type="range"] { width: 100%; margin-top: 8px; }
+
+    select{
+      width:100%;
+      margin-top: 8px;
+      padding:10px 10px;
+      border-radius:10px;
+      border:2px solid rgba(0,180,255,.25);
+      background: rgba(18,18,50,.9);
+      color:#fff;
+      font-weight:800;
+      outline:none;
+    }
 
     .hint { margin-top: 14px; opacity:.9; font-size: 13px; line-height:1.45; }
     kbd { background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
@@ -87,15 +99,25 @@
 
       <p class="title">2PlayerTag</p>
       <p class="dev">Dev: Mcant</p>
-      <p class="sub">
-        2 players only. Tagger is slightly faster + small reach buff.
-        Survive <b>20 seconds</b> as runner to score.
-        <br/><b>Classic: First to 10</b> wins → back to menu.
+      <p class="sub" id="modeDesc">
+        Classic: Survive <b>20 seconds</b> as runner to score.
+        <br/><b>First to 10</b> wins → back to menu.
       </p>
 
       <div class="row">
         <button id="play">PLAY</button>
         <button id="resetScore">RESET SCORE</button>
+
+        <div class="modeBox">
+          <label>
+            <span>Game Mode</span>
+            <span id="modeLabel">Classic</span>
+          </label>
+          <select id="mode">
+            <option value="classic" selected>Classic (First to 10)</option>
+            <option value="longest">Longest Run (2 rounds)</option>
+          </select>
+        </div>
 
         <div class="sliderBox">
           <label>
@@ -129,6 +151,10 @@
     const vol = document.getElementById("vol");
     const volLabel = document.getElementById("volLabel");
     const tipBox = document.getElementById("tipBox");
+
+    const modeSel = document.getElementById("mode");
+    const modeLabel = document.getElementById("modeLabel");
+    const modeDesc = document.getElementById("modeDesc");
 
     const W = canvas.width, H = canvas.height;
 
@@ -204,6 +230,7 @@
       o.stop(t + dur + 0.02);
     }
 
+    // A slightly richer 8-bit loop (lead + bass + tiny harmony "sparkle")
     function startMusic(){
       ensureAudio();
       if(!music.ctx || music.running) return;
@@ -211,9 +238,9 @@
       music.running = true;
       music.step = 0;
 
-      // simple 8-bit loop (bass + lead)
       const bass = [36,36,43,43,41,41,38,38, 36,36,43,43,41,41,38,38];
       const lead = [60,62,64,67, 64,62,60,62, 64,67,69,67, 64,62,60,57];
+      const sparkle = [72, null, 74, null, 76, null, 79, null, 76, null, 74, null, 72, null, 69, null];
 
       const stepMs = 120; // tempo
       music.timer = setInterval(() => {
@@ -221,8 +248,15 @@
 
         const i = music.step % lead.length;
 
+        // bass every other step
         if((music.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
+
+        // lead
         playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
+
+        // sparkle occasionally
+        const s = sparkle[music.step % sparkle.length];
+        if(s != null && (music.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
 
         music.step++;
       }, stepMs);
@@ -244,7 +278,7 @@
     });
 
     // =========================
-    // ONLY ONE MAP (OG map from your code)
+    // ONLY ONE MAP (OG map)
     // =========================
     const obs = [
       {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
@@ -294,7 +328,7 @@
     }
 
     // =========================
-    // GAME STATE (Classic only, first to 10)
+    // GAME STATE
     // =========================
     const base = 20;
     const big  = base + 10;
@@ -316,6 +350,12 @@
     let running = false;
     let shakeTicks = 0;
 
+    // modes
+    let mode = "classic";
+    let lrPhase = 0;   // 0=none, 1=P1 runner, 2=P2 runner, 3=done
+    let lrP1Time = 0;  // ticks survived as runner
+    let lrP2Time = 0;
+
     const keys = new Set();
     window.addEventListener("keydown", (e)=>{
       if(e.key === "Escape"){ openMenu(); }
@@ -328,36 +368,47 @@
     function sizeForP1(){ return isP1Tagger() ? big : base; }
     function sizeForP2(){ return isP1Tagger() ? base : big; }
 
+    function forceRoles(p1Tagger){
+      count = p1Tagger ? 1 : 0;
+    }
+
     const tips = [
       "Tip: As tagger, cut corners instead of following directly.",
       "Tip: Don’t run straight to the border—use pillars to juke.",
       "Tip: Runner route idea: top gap → center → side bumper → repeat.",
       "Tip: Fake a direction change at the pillars—people over-commit.",
       "Tip: If you get boxed, slide along obstacles instead of stopping.",
+      "Tip: Longest Run mode: each player gets ONE runner turn—make it count."
     ];
     function loadTip(){
       tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
     }
 
+    function updateModeUI(){
+      modeLabel.textContent = (modeSel.value === "classic") ? "Classic" : "Longest Run";
+      if(modeSel.value === "classic"){
+        modeDesc.innerHTML = `Classic: Survive <b>20 seconds</b> as runner to score.<br/><b>First to 10</b> wins → back to menu.`;
+      } else {
+        modeDesc.innerHTML = `Longest Run: Two rounds total.<br/>Each player gets <b>one</b> runner turn. Highest time wins.`;
+      }
+    }
+    modeSel.addEventListener("change", ()=>{
+      updateModeUI();
+      beep(520, 0.03);
+    });
+    updateModeUI();
+
     function openMenu(){
       running = false;
       menu.style.display = "flex";
       loadTip();
+
+      // reset LR state display (not scores)
+      lrPhase = 0;
+      lrP1Time = 0;
+      lrP2Time = 0;
+
       beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
-    }
-
-    function startGame(){
-      startMusic(); // background 8-bit music
-      running = true;
-      menu.style.display = "none";
-
-      // fresh match
-      p1.score = 0;
-      p2.score = 0;
-      count = 0;
-      resetRound(false);
-
-      beep(880, 0.04);
     }
 
     function resetRound(swapRoles=true){
@@ -367,17 +418,64 @@
       roundTicks = ROUND_TICKS;
     }
 
-    function endMatchToMenu(){
+    function startClassic(){
+      mode = "classic";
+      p1.score = 0;
+      p2.score = 0;
+      count = 0;
+      resetRound(false);
+    }
+
+    function startLongest(){
+      mode = "longest";
+      p1.score = 0;
+      p2.score = 0;
+
+      lrPhase = 1;
+      lrP1Time = 0;
+      lrP2Time = 0;
+
+      // Phase 1: P1 runner, P2 tagger
+      forceRoles(false); // P2 is tagger
+      resetRound(false);
+    }
+
+    function endClassicToMenu(){
       const winner = (p1.score > p2.score) ? "P1" : "P2";
       openMenu();
       tipBox.textContent = `🏆 ${winner} WINS! Final Score — P1: ${p1.score} | P2: ${p2.score}`;
       beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
     }
 
+    function endLongestToMenu(){
+      const p1Sec = (lrP1Time/50).toFixed(2);
+      const p2Sec = (lrP2Time/50).toFixed(2);
+      let msg = "";
+      if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+
+      openMenu();
+      tipBox.textContent = "🏁 Longest Run Results: " + msg;
+      beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
+    }
+
+    function startGame(){
+      startMusic(); // 8-bit music
+      running = true;
+      menu.style.display = "none";
+
+      if(modeSel.value === "classic") startClassic();
+      else startLongest();
+
+      beep(880, 0.04);
+    }
+
     playBtn.onclick = startGame;
 
     resetScoreBtn.onclick = ()=>{
       p1.score = 0; p2.score = 0;
+      lrP1Time = 0; lrP2Time = 0; lrPhase = 0;
       beep(330, 0.04);
       setTimeout(()=>beep(220, 0.04), 60);
       tipBox.textContent = "Scores reset.";
@@ -437,26 +535,49 @@
 
       const tagged = rectsIntersect(hb1, hb2);
 
-      if(tagged){
-        if(p1Tag) p1.score++; else p2.score++;
-        shakeTicks = 14;
-        beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+      if(mode === "classic"){
+        if(tagged){
+          if(p1Tag) p1.score++; else p2.score++;
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
 
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endMatchToMenu();
-          return;
-        }
-        resetRound(true);
-      } else if(roundTicks <= 0){
-        // runner scores for surviving
-        if(p1Tag) p2.score++; else p1.score++;
-        beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
+          }
+          resetRound(true);
+        } else if(roundTicks <= 0){
+          if(p1Tag) p2.score++; else p1.score++;
+          beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
 
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endMatchToMenu();
-          return;
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
+          }
+          resetRound(true);
         }
-        resetRound(true);
+      } else {
+        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
+        const p1Runner = !p1Tag;
+        const p2Runner = p1Tag;
+
+        if(lrPhase === 1 && p1Runner) lrP1Time++;
+        if(lrPhase === 2 && p2Runner) lrP2Time++;
+
+        if(tagged || roundTicks <= 0){
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(lrPhase === 1){
+            lrPhase = 2;
+            // Phase 2: P2 runner, P1 tagger
+            forceRoles(true);
+            resetRound(false);
+          } else if(lrPhase === 2){
+            lrPhase = 3;
+            endLongestToMenu();
+          }
+        }
       }
     }
 
@@ -505,16 +626,27 @@
 
       g.fillStyle = "white";
       g.font = "16px system-ui, Arial";
-      g.fillText(`P1: ${p1.score}`, 14, 22);
-      g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
-      g.fillText(`P2: ${p2.score}`, W-70, 22);
+
+      if(mode === "classic"){
+        g.fillText(`P1: ${p1.score}`, 14, 22);
+        g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
+        g.fillText(`P2: ${p2.score}`, W-70, 22);
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
+      } else {
+        const p1Sec = (lrP1Time/50).toFixed(2);
+        const p2Sec = (lrP2Time/50).toFixed(2);
+        g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Longest Run`, (W/2)-40, 44);
+        g.fillText(`P1 best: ${p1Sec}s`, 14, 22);
+        g.fillText(`P2 best: ${p2Sec}s`, W-120, 22);
+        g.fillText(`Round: ${Math.min(lrPhase,2)}/2`, (W/2)-30, 62);
+      }
 
       g.font = "14px system-ui, Arial";
       g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
       g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
-
-      g.font = "13px system-ui, Arial";
-      g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
 
       g.font = "12px system-ui, Arial";
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
