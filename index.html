@@ -3,418 +3,372 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tag Game (800×800) + 8-Bit Audio</title>
+  <title>Tag Game</title>
   <style>
-    html, body { height: 100%; margin: 0; }
-    body {
-      display: grid;
-      place-items: center;
-      background: #0b0b12;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
+    .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
+    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; }
+    .ui {
+      position: fixed; inset: 0;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.55);
+    }
+    .card {
+      width: min(520px, 92vw);
+      background: #0b0b18;
+      border: 2px solid #2b2b55;
+      border-radius: 16px;
+      padding: 20px;
       color: #fff;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
     }
-    .wrap { width: 820px; max-width: calc(100vw - 24px); }
-    canvas {
-      width: 800px;
-      height: 800px;
-      max-width: 100%;
-      aspect-ratio: 1 / 1;
-      image-rendering: pixelated;
-      border: 2px solid #f6e04a;
-      background: rgb(13, 7, 130);
-      outline: none;
-      display: block;
+    .title { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+    .sub { opacity: .85; margin: 0 0 16px; line-height: 1.35; }
+    .btns { display:flex; gap: 12px; flex-wrap: wrap; }
+    button {
+      cursor:pointer;
+      border: 2px solid #3b3b7a;
+      background:#121235;
+      color:#fff;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      transition: transform .05s ease, background .15s ease;
     }
-    .hint { margin-top: 10px; opacity: 0.8; font-size: 14px; }
-    .hint kbd { background: #1f2330; padding: 2px 6px; border-radius: 6px; border: 1px solid #3a3f52; }
-
-    #muteBtn {
-      width: 100%;
-      margin-bottom: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #3a3f52;
-      background: #1f2330;
-      color: white;
-      cursor: pointer;
-      font-size: 14px;
-    }
+    button:hover { background:#181847; }
+    button:active { transform: translateY(1px); }
+    .hint { margin-top: 14px; opacity:.85; font-size: 13px; line-height:1.35; }
+    kbd { background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <button id="muteBtn">🔊 Sound: ON (click to mute)</button>
+    <canvas id="c" width="800" height="800"></canvas>
+  </div>
 
-    <canvas id="game" width="800" height="800" tabindex="0" aria-label="Tag Game Canvas"></canvas>
-
-    <div class="hint">
-      Click the canvas to focus / start sound. P1:
-      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;|&nbsp;
-      P2: <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd>
+  <div class="ui" id="menu">
+    <div class="card">
+      <p class="title">Tag Game</p>
+      <p class="sub">
+        Choose a mode. Tagger is slightly faster + has a tiny reach buff.
+        Survive the timer to score as runner.
+      </p>
+      <div class="btns">
+        <button id="twoP">2 Player</button>
+        <button id="oneP">1 Player vs AI</button>
+        <button id="reset">Reset Scores</button>
+      </div>
+      <div class="hint">
+        <div><b>Player 1 (top-left):</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <div><b>Player 2 (bottom-right):</b> Arrow Keys (or AI in 1P)</div>
+        <div style="margin-top:8px;">Press <b>Esc</b> to return to this menu anytime.</div>
+      </div>
     </div>
   </div>
 
   <script>
-    (() => {
-      const canvas = document.getElementById("game");
-      const ctx = canvas.getContext("2d");
+    const canvas = document.getElementById("c");
+    const g = canvas.getContext("2d");
 
-      const w = 800, h = 800;
-      const boxWH = 20;
-      const SPEED = 8;
+    const menu = document.getElementById("menu");
+    const twoPBtn = document.getElementById("twoP");
+    const onePBtn = document.getElementById("oneP");
+    const resetBtn = document.getElementById("reset");
 
-      /* =========================
-         8-BIT AUDIO (no files)
-         ========================= */
-      let audioCtx = null;
-      let muted = false;
-      let musicTimer = null;
-      let audioUnlocked = false;
+    const W = canvas.width, H = canvas.height;
 
-      function ensureAudio() {
-        if (!audioCtx) {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          audioCtx = new AC();
+    // ---------- MAP / OBSTACLES ----------
+    const obs = [
+      // top
+      {x:160,y:160,w:280,h:20},
+      {x:520,y:160,w:120,h:20},
+      // bottom
+      {x:160,y:620,w:120,h:20},
+      {x:360,y:620,w:280,h:20},
+      // left
+      {x:160,y:160,w:20,h:220},
+      {x:160,y:460,w:20,h:180},
+      // right
+      {x:620,y:160,w:20,h:180},
+      {x:620,y:460,w:20,h:180},
+      // center pillars
+      {x:360,y:260,w:30,h:30},
+      {x:430,y:260,w:30,h:30},
+      {x:360,y:510,w:30,h:30},
+      {x:430,y:510,w:30,h:30},
+      // side bumpers
+      {x:90,y:280,w:60,h:20},
+      {x:90,y:500,w:60,h:20},
+      {x:650,y:280,w:60,h:20},
+      {x:650,y:500,w:60,h:20},
+    ];
+
+    function rectsIntersect(a,b){
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    // ---------- GAME STATE ----------
+    const base = 20;
+    const big = base + 10;
+
+    // P1 top-left (WASD)
+    const p1 = { x:30, y:30, vx:0, vy:0, score:0 };
+    // P2 bottom-right (arrows / AI)
+    const p2 = { x:740, y:740, vx:0, vy:0, score:0 };
+
+    // count%2==0 => P2 is big (tagger); count%2==1 => P1 is big (tagger)
+    let count = 0;
+
+    // 12 seconds @ 20ms/tick => 50 ticks/sec => 600
+    const ROUND_TICKS = 600;
+    let roundTicks = ROUND_TICKS;
+
+    // fairness knobs
+    const SPEED = 8;
+    const TAG_SPEED = SPEED + 1;
+    const TAG_REACH = 4;
+
+    // mode
+    let mode = "menu"; // "2p" | "1p"
+    let running = false;
+
+    const keys = new Set();
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape"){ openMenu(); }
+      keys.add(e.key.toLowerCase());
+      // prevent arrow scrolling
+      if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
+    }, {passive:false});
+    window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
+
+    function openMenu(){
+      running = false;
+      mode = "menu";
+      menu.style.display = "flex";
+    }
+
+    function startGame(which){
+      mode = which;
+      running = true;
+      menu.style.display = "none";
+      resetRound(false); // don't swap roles on start
+    }
+
+    function resetRound(swapRoles=true){
+      // spawn
+      p1.x = 30; p1.y = 30; p1.vx = 0; p1.vy = 0;
+      p2.x = 740; p2.y = 740; p2.vx = 0; p2.vy = 0;
+
+      if(swapRoles) count++;
+      roundTicks = ROUND_TICKS;
+    }
+
+    resetBtn.onclick = ()=>{
+      p1.score = 0; p2.score = 0;
+    };
+    twoPBtn.onclick = ()=> startGame("2p");
+    onePBtn.onclick = ()=> startGame("1p");
+
+    function isP1Tagger(){ return (count % 2 === 1); }
+
+    function sizeForP1(){ return isP1Tagger() ? big : base; }
+    function sizeForP2(){ return isP1Tagger() ? base : big; }
+
+    function clampPlayer(p, size){
+      if(p.x < 0) p.x = 0;
+      if(p.y < 0) p.y = 0;
+      if(p.x + size > W) p.x = W - size;
+      if(p.y + size > H) p.y = H - size;
+    }
+
+    function slideMove(p, dx, dy, size){
+      const oldX = p.x;
+      const oldY = p.y;
+
+      // try x
+      p.x += dx;
+      let test = {x:p.x, y:oldY, w:size, h:size};
+      for(const r of obs){
+        if(rectsIntersect(test, r)){
+          p.x = oldX;
+          break;
         }
-        return audioCtx;
       }
-
-      function beep(freq, dur, type="square", vol=0.08) {
-        if (muted) return;
-        const ac = ensureAudio();
-        const o = ac.createOscillator();
-        const g = ac.createGain();
-
-        // tiny envelope so it sounds less clicky
-        const t0 = ac.currentTime;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-        o.type = type;
-        o.frequency.value = freq;
-
-        o.connect(g).connect(ac.destination);
-        o.start(t0);
-        o.stop(t0 + dur + 0.02);
-      }
-
-      function sfxTag() {
-        beep(988, 0.06, "square", 0.12);
-        setTimeout(() => beep(1319, 0.06, "square", 0.10), 55);
-      }
-
-      function sfxTimeout() {
-        beep(220, 0.20, "square", 0.14);
-        setTimeout(() => beep(196, 0.20, "square", 0.14), 160);
-        setTimeout(() => beep(174, 0.25, "square", 0.14), 320);
-      }
-
-      // simple chiptune loop (8-bit vibe)
-      const melody = [
-        523, 659, 784, 659,
-        587, 698, 880, 698,
-        523, 659, 784, 988,
-        784, 659, 587, 523
-      ];
-      let mIndex = 0;
-
-      function startMusic() {
-        if (musicTimer) return;
-        musicTimer = setInterval(() => {
-          if (muted) return;
-          beep(melody[mIndex++ % melody.length], 0.11, "square", 0.045);
-          // little “pulse bass” every 4 notes
-          if (mIndex % 4 === 0) beep(131, 0.09, "square", 0.03);
-        }, 160);
-      }
-
-      function stopMusic() {
-        if (musicTimer) clearInterval(musicTimer);
-        musicTimer = null;
-      }
-
-      async function unlockAudio() {
-        if (audioUnlocked) return;
-        audioUnlocked = true;
-        const ac = ensureAudio();
-        try { await ac.resume(); } catch {}
-        if (!muted) startMusic();
-      }
-
-      const muteBtn = document.getElementById("muteBtn");
-      muteBtn.addEventListener("click", async () => {
-        muted = !muted;
-        muteBtn.textContent = muted ? "🔇 Sound: OFF (click to unmute)" : "🔊 Sound: ON (click to mute)";
-        if (muted) stopMusic();
-        else await unlockAudio();
-      });
-
-      /* =========================
-         GAME (your original)
-         ========================= */
-
-      // Game state
-      let px = 0, py = 0;     // P2 (arrows)
-      let px2 = 0, py2 = 0;   // P1 (WASD)
-      let count = 0;          // swap tagger each round
-      let p1Score = 0, p2Score = 0;
-
-      const ROUND_TIME_TICKS = 1250; // 1500 * 20ms = 30s
-      let roundTicks = ROUND_TIME_TICKS;
-
-      // Inputs
-      const keys = {
-        left:false,right:false,up:false,down:false,
-        W:false,A:false,S:false,D:false
-      };
-
-      // Obstacles
-      const obs = [
-        rect(160, 160, 280, 20),
-        rect(520, 160, 120, 20),
-
-        rect(160, 620, 120, 20),
-        rect(360, 620, 280, 20),
-
-        rect(160, 160, 20, 220),
-        rect(160, 460, 20, 180),
-
-        rect(620, 160, 20, 180),
-        rect(620, 460, 20, 180),
-
-        rect(360, 260, 30, 30),
-        rect(430, 260, 30, 30),
-        rect(360, 510, 30, 30),
-        rect(430, 510, 30, 30),
-
-        rect(90, 280, 60, 20),
-        rect(90, 500, 60, 20),
-        rect(650, 280, 60, 20),
-        rect(650, 500, 60, 20)
-      ];
-
-      function rect(x,y,width,height){ return {x,y,width,height}; }
-
-      function resetPositionsOnly() {
-        px2 = 30; py2 = 30;
-        px  = w - 30 - (boxWH + 10);
-        py  = h - 30 - (boxWH + 10);
-        roundTicks = ROUND_TIME_TICKS;
-      }
-
-      function resetRound() {
-        resetPositionsOnly();
-        count++;
-      }
-
-      function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-
-      function intersects(a, b) {
-        return (a.x < b.x + b.width &&
-                a.x + a.width > b.x &&
-                a.y < b.y + b.height &&
-                a.y + a.height > b.y);
-      }
-
-      function grow(r, gx, gy) {
-        return {
-          x: r.x - gx,
-          y: r.y - gy,
-          width: r.width + gx*2,
-          height: r.height + gy*2
-        };
-      }
-
-      // Slide collision: test X then Y
-      function slideMove(x, y, vx, vy, size) {
-        const oldX = x, oldY = y;
-
-        x += vx; y += vy;
-
-        // test X collision (keep oldY)
-        let testX = { x, y: oldY, width: size, height: size };
-        for (const r of obs) {
-          if (intersects(testX, r)) { x = oldX; break; }
-        }
-
-        // test Y collision (use current x)
-        let testY = { x, y, width: size, height: size };
-        for (const r of obs) {
-          if (intersects(testY, r)) { y = oldY; break; }
-        }
-
-        x = clamp(x, 0, w - size);
-        y = clamp(y, 0, h - size);
-
-        return {x,y};
-      }
-
-      function update() {
-        const p1IsTagger = (count % 2 === 1);
-
-        const p2Size = (count % 2 === 0) ? (boxWH + 10) : boxWH;
-        const p1Size = (count % 2 === 0) ? boxWH : (boxWH + 10);
-
-        // fairness buffs
-        const tagSpeed = SPEED + 1;
-        const runSpeed = SPEED;
-        const p1Speed = p1IsTagger ? tagSpeed : runSpeed;
-        const p2Speed = p1IsTagger ? runSpeed : tagSpeed;
-
-        // velocities
-        let vX = 0, vY = 0;
-        if (keys.left)  vX = -p2Speed;
-        if (keys.right) vX =  p2Speed;
-        if (keys.up)    vY = -p2Speed;
-        if (keys.down)  vY =  p2Speed;
-
-        let vX2 = 0, vY2 = 0;
-        if (keys.A) vX2 = -p1Speed;
-        if (keys.D) vX2 =  p1Speed;
-        if (keys.W) vY2 = -p1Speed;
-        if (keys.S) vY2 =  p1Speed;
-
-        // move with sliding collision
-        ({x:px,  y:py } = slideMove(px,  py,  vX,  vY,  p2Size));
-        ({x:px2, y:py2} = slideMove(px2, py2, vX2, vY2, p1Size));
-
-        // hitboxes
-        const p1HB = { x:px2, y:py2, width:p1Size, height:p1Size };
-        const p2HB = { x:px,  y:py,  width:p2Size, height:p2Size };
-
-        // timer
-        if (roundTicks > 0) roundTicks--;
-
-        // tag reach buff
-        let tagHB1 = {...p1HB};
-        let tagHB2 = {...p2HB};
-        if (p1IsTagger) tagHB1 = grow(tagHB1, 4, 4);
-        else           tagHB2 = grow(tagHB2, 4, 4);
-
-        // win conditions + 8-bit sounds
-        if (intersects(tagHB1, tagHB2)) {
-          sfxTag();
-          if (p1IsTagger) p1Score++;
-          else p2Score++;
-          resetRound();
-        } else if (roundTicks <= 0) {
-          sfxTimeout();
-          if (p1IsTagger) p2Score++;
-          else p1Score++;
-          resetRound();
+      // try y
+      p.y += dy;
+      test = {x:p.x, y:p.y, w:size, h:size};
+      for(const r of obs){
+        if(rectsIntersect(test, r)){
+          p.y = oldY;
+          break;
         }
       }
 
-      function draw() {
-        ctx.clearRect(0, 0, w, h);
+      clampPlayer(p, size);
+    }
 
-        // grid
-        ctx.strokeStyle = "rgb(25,25,25)";
-        ctx.lineWidth = 1;
-        for (let x = 0; x < w; x += 40) {
-          ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
-        }
-        for (let y = 0; y < h; y += 40) {
-          ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
-        }
+    // Simple AI:
+    // - If AI is tagger: chase the runner
+    // - If AI is runner: run away + add a little “orbit” so it doesn’t get stuck
+    function aiStep(){
+      const ai = p2;
+      const aiSize = sizeForP2();
 
-        // obstacles
-        for (const r of obs) {
-          ctx.fillStyle = "rgb(0,180,255)";
-          ctx.fillRect(r.x, r.y, r.width, r.height);
-          ctx.strokeStyle = "#ffffff";
-          ctx.strokeRect(r.x, r.y, r.width, r.height);
-        }
+      const p1Tag = isP1Tagger();
+      const aiIsTagger = !p1Tag;
 
-        const p1IsTagger = (count % 2 === 1);
-        const p2Size = (count % 2 === 0) ? (boxWH + 10) : boxWH;
-        const p1Size = (count % 2 === 0) ? boxWH : (boxWH + 10);
+      const runner = aiIsTagger ? p1 : p2;   // runner target if chasing
+      const target = aiIsTagger ? p1 : p1;   // (we always consider p1 as opponent)
+      // Actually:
+      // if AI is tagger -> chase p1
+      // if AI is runner -> evade p1
+      const opp = p1;
 
-        // players (swap big/small + colors)
-        if (count % 2 === 0) {
-          ctx.fillStyle = "#ff2a2a"; // red
-          ctx.fillRect(px, py, p2Size, p2Size);
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(px2, py2, p1Size, p1Size);
-        } else {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(px, py, p2Size, p2Size);
-          ctx.fillStyle = "#ff2a2a";
-          ctx.fillRect(px2, py2, p1Size, p1Size);
-        }
+      const aiSpeed = aiIsTagger ? TAG_SPEED : SPEED;
 
-        // border
-        ctx.strokeStyle = "#f6e04a";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+      // vector to opponent
+      let dx = opp.x - ai.x;
+      let dy = opp.y - ai.y;
 
-        // HUD
-        const secondsLeft = Math.floor((roundTicks + 49) / 50);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.fillText(`P1: ${p1Score}`, 15, 20);
-        ctx.fillText(`TIME: ${secondsLeft}`, (w/2) - 35, 20);
-        ctx.fillText(`P2: ${p2Score}`, w - 70, 20);
+      // normalize-ish
+      const len = Math.hypot(dx, dy) || 1;
 
-        ctx.font = "14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.fillText(p1IsTagger ? "TAGGER" : "RUNNER", 15, 40);
-        ctx.fillText(p1IsTagger ? "RUNNER" : "TAGGER", w - 85, 40);
+      let mx = dx / len;
+      let my = dy / len;
 
-        ctx.fillText("Dev: Mcant", 10, h - 10);
-
-        // friendly “start sound” reminder
-        if (!audioUnlocked) {
-          ctx.font = "18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-          ctx.fillText("Click canvas to start sound", (w/2) - 110, (h/2));
-        }
+      if(aiIsTagger){
+        // chase
+      } else {
+        // flee (reverse), plus a sideways component for juking
+        mx = -mx;
+        my = -my;
+        // orbit/juke
+        const side = ((count + Math.floor(roundTicks/15)) % 2 === 0) ? 1 : -1;
+        const ox = -my * 0.35 * side;
+        const oy = mx * 0.35 * side;
+        mx += ox; my += oy;
+        const len2 = Math.hypot(mx,my) || 1;
+        mx /= len2; my /= len2;
       }
 
-      // Input handling
-      function setKey(e, isDown) {
-        const k = e.key;
+      // attempt movement
+      slideMove(ai, mx * aiSpeed, my * aiSpeed, aiSize);
+    }
 
-        if (k === "ArrowLeft")  keys.left = isDown;
-        if (k === "ArrowRight") keys.right = isDown;
-        if (k === "ArrowUp")    keys.up = isDown;
-        if (k === "ArrowDown")  keys.down = isDown;
+    function step(){
+      if(!running){ draw(); requestAnimationFrame(step); return; }
 
-        if (k === "w" || k === "W") keys.W = isDown;
-        if (k === "a" || k === "A") keys.A = isDown;
-        if (k === "s" || k === "S") keys.S = isDown;
-        if (k === "d" || k === "D") keys.D = isDown;
+      const p1Tag = isP1Tagger();
 
-        if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(k)) {
-          e.preventDefault();
-        }
+      const p1Size = sizeForP1();
+      const p2Size = sizeForP2();
+
+      // speeds per role
+      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
+      const p2Speed = p1Tag ? SPEED : TAG_SPEED;
+
+      // Player 1 (WASD)
+      let p1dx = 0, p1dy = 0;
+      if(keys.has("w")) p1dy -= p1Speed;
+      if(keys.has("s")) p1dy += p1Speed;
+      if(keys.has("a")) p1dx -= p1Speed;
+      if(keys.has("d")) p1dx += p1Speed;
+      slideMove(p1, p1dx, p1dy, p1Size);
+
+      // Player 2 (arrows) or AI
+      if(mode === "2p"){
+        let p2dx = 0, p2dy = 0;
+        if(keys.has("arrowup")) p2dy -= p2Speed;
+        if(keys.has("arrowdown")) p2dy += p2Speed;
+        if(keys.has("arrowleft")) p2dx -= p2Speed;
+        if(keys.has("arrowright")) p2dx += p2Speed;
+        slideMove(p2, p2dx, p2dy, p2Size);
+      } else if(mode === "1p") {
+        aiStep();
       }
 
-      window.addEventListener("keydown", async (e) => {
-        await unlockAudio();
-        setKey(e, true);
-      }, {passive:false});
+      // timer
+      if(roundTicks > 0) roundTicks--;
 
-      window.addEventListener("keyup", (e) => setKey(e, false), {passive:false});
+      // tag check with reach buff
+      let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
+      let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
 
-      // Focus helper + unlock audio on click
-      canvas.addEventListener("pointerdown", async () => {
-        canvas.focus();
-        await unlockAudio();
-      });
-
-      // Start game
-      resetPositionsOnly();
-
-      // 20ms tick like Swing Timer
-      setInterval(update, 20);
-
-      // draw loop
-      function loop() {
-        draw();
-        requestAnimationFrame(loop);
+      if(p1Tag){
+        hb1 = {x:hb1.x - TAG_REACH, y:hb1.y - TAG_REACH, w:hb1.w + TAG_REACH*2, h:hb1.h + TAG_REACH*2};
+      } else {
+        hb2 = {x:hb2.x - TAG_REACH, y:hb2.y - TAG_REACH, w:hb2.w + TAG_REACH*2, h:hb2.h + TAG_REACH*2};
       }
-      loop();
-    })();
+
+      const tagged = rectsIntersect(hb1, hb2);
+
+      if(tagged){
+        if(p1Tag) p1.score++; else p2.score++;
+        resetRound(true);
+      } else if(roundTicks <= 0){
+        // runner scores
+        if(p1Tag) p2.score++; else p1.score++;
+        resetRound(true);
+      }
+
+      draw();
+      requestAnimationFrame(step);
+    }
+
+    function draw(){
+      // background already set by canvas css; still clear
+      g.clearRect(0,0,W,H);
+
+      // grid
+      g.strokeStyle = "rgb(25,25,25)";
+      for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+      for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+
+      // obstacles
+      g.fillStyle = "rgb(0,180,255)";
+      g.strokeStyle = "white";
+      for(const r of obs){
+        g.fillRect(r.x,r.y,r.w,r.h);
+        g.strokeRect(r.x,r.y,r.w,r.h);
+      }
+
+      // players
+      const p1Tag = isP1Tagger();
+      const p1Size = sizeForP1();
+      const p2Size = sizeForP2();
+
+      // P1 top-left
+      g.fillStyle = p1Tag ? "red" : "white";
+      g.fillRect(p1.x, p1.y, p1Size, p1Size);
+
+      // P2 bottom-right
+      g.fillStyle = p1Tag ? "white" : "red";
+      g.fillRect(p2.x, p2.y, p2Size, p2Size);
+
+      // border
+      g.strokeStyle = "#ffd400";
+      g.strokeRect(0.5,0.5,W-1,H-1);
+
+      // UI
+      const secondsLeft = Math.ceil(roundTicks / 50);
+
+      g.fillStyle = "white";
+      g.font = "16px system-ui, Arial";
+      g.fillText(`P1: ${p1.score}`, 14, 22);
+      g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
+      g.fillText(`P2: ${p2.score}`, W-70, 22);
+
+      g.font = "14px system-ui, Arial";
+      g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
+      g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
+
+      g.font = "12px system-ui, Arial";
+      g.fillText(`Mode: ${mode === "1p" ? "1P vs AI" : (mode === "2p" ? "2P" : "Menu")}  |  Esc = Menu`, 14, H-12);
+    }
+
+    // start at menu
+    openMenu();
+    requestAnimationFrame(step);
   </script>
 </body>
 </html>
