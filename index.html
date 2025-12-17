@@ -109,6 +109,7 @@
       <p class="sub">
         2 players only. Tagger is slightly faster + small reach buff.
         Survive <b>20 seconds</b> as runner to score (Classic).
+        <br/>Random map every round (4 maps).
       </p>
 
       <div class="row">
@@ -190,30 +191,97 @@
       beep(520, 0.03);
     });
 
-    // ---------- MAP / OBSTACLES ----------
-    const obs = [
-      {x:160,y:160,w:280,h:20},
-      {x:520,y:160,w:120,h:20},
+    // ---------- MAPS (4) ----------
+    const MAPS = [
+      // MAP 1 (your original)
+      [
+        {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
+        {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
+        {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
+        {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
+        {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
+        {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
+        {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
+        {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
+      ],
 
-      {x:160,y:620,w:120,h:20},
-      {x:360,y:620,w:280,h:20},
+      // MAP 2 (wide lanes + center zig)
+      [
+        {x:140,y:150,w:520,h:20},
+        {x:140,y:630,w:520,h:20},
 
-      {x:160,y:160,w:20,h:220},
-      {x:160,y:460,w:20,h:180},
+        {x:140,y:150,w:20,h:180},
+        {x:140,y:450,w:20,h:200},
 
-      {x:620,y:160,w:20,h:180},
-      {x:620,y:460,w:20,h:180},
+        {x:640,y:150,w:20,h:200},
+        {x:640,y:450,w:20,h:180},
 
-      {x:360,y:260,w:30,h:30},
-      {x:430,y:260,w:30,h:30},
-      {x:360,y:510,w:30,h:30},
-      {x:430,y:510,w:30,h:30},
+        {x:250,y:260,w:300,h:20},
+        {x:250,y:520,w:300,h:20},
 
-      {x:90,y:280,w:60,h:20},
-      {x:90,y:500,w:60,h:20},
-      {x:650,y:280,w:60,h:20},
-      {x:650,y:500,w:60,h:20},
+        {x:250,y:280,w:20,h:220},
+        {x:530,y:280,w:20,h:220},
+
+        {x:375,y:355,w:50,h:50},
+        {x:375,y:445,w:50,h:50},
+
+        {x:70,y:390,w:80,h:20},
+        {x:650,y:390,w:80,h:20},
+      ],
+
+      // MAP 3 (pillars playground)
+      [
+        {x:120,y:120,w:560,h:20},
+        {x:120,y:660,w:560,h:20},
+        {x:120,y:120,w:20,h:560},
+        {x:660,y:120,w:20,h:560},
+
+        // pillar grid
+        {x:240,y:240,w:35,h:35},{x:360,y:240,w:35,h:35},{x:480,y:240,w:35,h:35},
+        {x:240,y:360,w:35,h:35},{x:360,y:360,w:35,h:35},{x:480,y:360,w:35,h:35},
+        {x:240,y:480,w:35,h:35},{x:360,y:480,w:35,h:35},{x:480,y:480,w:35,h:35},
+
+        // side bumpers
+        {x:70,y:260,w:70,h:20},{x:70,y:520,w:70,h:20},
+        {x:660,y:260,w:70,h:20},{x:660,y:520,w:70,h:20},
+      ],
+
+      // MAP 4 (two big arenas + connectors)
+      [
+        // left arena frame
+        {x:110,y:140,w:20,h:520},
+        {x:110,y:140,w:240,h:20},
+        {x:110,y:640,w:240,h:20},
+        {x:330,y:140,w:20,h:200},
+        {x:330,y:460,w:20,h:200},
+
+        // right arena frame
+        {x:670,y:140,w:20,h:520},
+        {x:450,y:140,w:240,h:20},
+        {x:450,y:640,w:240,h:20},
+        {x:450,y:140,w:20,h:200},
+        {x:450,y:460,w:20,h:200},
+
+        // center connectors (top + bottom)
+        {x:350,y:260,w:100,h:20},
+        {x:350,y:520,w:100,h:20},
+
+        // small jukes inside arenas
+        {x:200,y:300,w:60,h:20},{x:200,y:500,w:60,h:20},
+        {x:540,y:300,w:60,h:20},{x:540,y:500,w:60,h:20},
+      ],
     ];
+
+    // current map (random each round)
+    let obs = MAPS[0];
+    let lastMap = -1;
+    function pickRandomMap(){
+      let idx = Math.floor(Math.random() * MAPS.length);
+      // avoid same map back-to-back
+      if(MAPS.length > 1 && idx === lastMap) idx = (idx + 1) % MAPS.length;
+      lastMap = idx;
+      obs = MAPS[idx];
+    }
 
     function rectsIntersect(a,b){
       return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -238,7 +306,6 @@
 
       nx = Math.max(0, Math.min(W - size, nx));
       ny = Math.max(0, Math.min(H - size, ny));
-
       return {x:nx, y:ny};
     }
     function slideMove(p, dx, dy, size){
@@ -250,15 +317,12 @@
     const base = 20;
     const big  = base + 10;
 
-    // P1 top-left (WASD)
-    const p1 = { x:30,  y:30,  score:0 };
-    // P2 bottom-right (arrows)
-    const p2 = { x:740, y:740, score:0 };
+    const p1 = { x:30,  y:30,  score:0 }; // WASD
+    const p2 = { x:740, y:740, score:0 }; // Arrows
 
     let count = 0;
 
-    // 20 seconds @ 50 ticks/sec
-    const ROUND_TICKS = 1000;
+    const ROUND_TICKS = 1000; // 20s @ 50fps
     let roundTicks = ROUND_TICKS;
 
     const SPEED = 8;
@@ -267,11 +331,10 @@
 
     let running = false;
 
-    // Longest Run mode tracking
-    // two turns total: (1) P1 runner, (2) P2 runner
+    // Longest Run
     let mode = "classic";
-    let lrPhase = 0; // 0=not running, 1=P1 runner, 2=P2 runner, 3=done
-    let lrP1Time = 0; // ticks survived as runner
+    let lrPhase = 0;
+    let lrP1Time = 0;
     let lrP2Time = 0;
 
     const keys = new Set();
@@ -287,7 +350,6 @@
     function sizeForP2(){ return isP1Tagger() ? base : big; }
 
     function forceRoles(p1Tagger){
-      // count%2==1 => P1 tagger, count%2==0 => P2 tagger
       count = p1Tagger ? 1 : 0;
     }
 
@@ -296,7 +358,6 @@
       menu.style.display = "flex";
       loadTip();
 
-      // reset longest-run mode state when leaving game
       lrPhase = 0;
       lrP1Time = 0;
       lrP2Time = 0;
@@ -305,7 +366,7 @@
     }
 
     function startGame(){
-      mode = modeSel.value; // "classic" or "longest"
+      mode = modeSel.value;
       running = true;
       menu.style.display = "none";
 
@@ -319,6 +380,9 @@
     }
 
     function resetRound(swapRoles=true){
+      // NEW: random map every round (both modes call this)
+      pickRandomMap();
+
       p1.x = 30;  p1.y = 30;
       p2.x = 740; p2.y = 740;
       if(swapRoles) count++;
@@ -326,19 +390,16 @@
     }
 
     function startLongestRun(){
-      // Round 1: P1 runner, P2 tagger
       lrPhase = 1;
       lrP1Time = 0;
       lrP2Time = 0;
 
-      // P2 tagger => count even
-      forceRoles(false);
-
+      // Phase 1: P1 runner, P2 tagger
+      forceRoles(false); // P2 tagger
       resetRound(false);
     }
 
     function endLongestRunAndReturn(){
-      // Decide winner
       const p1Sec = (lrP1Time/50).toFixed(2);
       const p2Sec = (lrP2Time/50).toFixed(2);
 
@@ -347,7 +408,6 @@
       else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
       else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
 
-      // show it on menu tip box
       openMenu();
       tipBox.textContent = "🏁 Longest Run Results: " + msg;
       beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
@@ -361,7 +421,7 @@
       setTimeout(()=>beep(220, 0.04), 60);
     };
 
-    // Secret
+    // Surprise
     let shakeTicks = 0;
     window.addEventListener("keydown", (e)=>{
       if(!running && e.key.toLowerCase() === "m"){
@@ -376,6 +436,7 @@
       "Tip: Runner route idea: top gap → center → side bumper → repeat.",
       "Tip: Fake a direction change at the pillars—people over-commit.",
       "Tip: If you get boxed, slide along obstacles instead of stopping.",
+      "Tip: Random map every round—learn the lanes fast.",
       "Tip: Longest Run mode: each player gets ONE runner turn—make it count."
     ];
     function loadTip(){
@@ -398,7 +459,7 @@
       const p1Speed = p1Tag ? TAG_SPEED : SPEED;
       const p2Speed = p1Tag ? SPEED : TAG_SPEED;
 
-      // P1
+      // P1 (WASD)
       let p1dx = 0, p1dy = 0;
       if(keys.has("w")) p1dy -= p1Speed;
       if(keys.has("s")) p1dy += p1Speed;
@@ -406,7 +467,7 @@
       if(keys.has("d")) p1dx += p1Speed;
       slideMove(p1, p1dx, p1dy, p1Size);
 
-      // P2
+      // P2 (Arrows)
       let p2dx = 0, p2dy = 0;
       if(keys.has("arrowup")) p2dy -= p2Speed;
       if(keys.has("arrowdown")) p2dy += p2Speed;
@@ -414,17 +475,7 @@
       if(keys.has("arrowright")) p2dx += p2Speed;
       slideMove(p2, p2dx, p2dy, p2Size);
 
-      // timer
       if(roundTicks > 0) roundTicks--;
-
-      // Longest Run survival tracking
-      if(mode === "longest"){
-        // runner is opposite of tagger
-        const p1Runner = !p1Tag;
-        if(lrPhase === 1 && p1Runner) lrP1Time++; // P1 runner round
-        if(lrPhase === 2 && p1Runner) lrP2Time++; // in phase2, P1 is tagger, so runner is P2
-        if(lrPhase === 2 && !p1Runner) lrP2Time++; // <-- this line is wrong if left, so we handle below cleanly
-      }
 
       // tag check with reach buff
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
@@ -450,33 +501,21 @@
           resetRound(true);
         }
       } else {
-        // Longest Run mode logic:
-        // Phase 1: P1 runner (P2 tagger)
-        // Phase 2: P2 runner (P1 tagger)
-        // End after both are done -> back to menu
-
-        // record survival time properly:
+        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
         const p1Runner = !p1Tag;
         const p2Runner = p1Tag;
 
-        if(lrPhase === 1){
-          // in phase 1, P1 should be runner
-          if(p1Runner) lrP1Time++;
-        }
-        if(lrPhase === 2){
-          // in phase 2, P2 should be runner
-          if(p2Runner) lrP2Time++;
-        }
+        if(lrPhase === 1 && p1Runner) lrP1Time++;
+        if(lrPhase === 2 && p2Runner) lrP2Time++;
 
         if(tagged || roundTicks <= 0){
           shakeTicks = 14;
           beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
 
           if(lrPhase === 1){
-            // move to phase 2: P2 runner, P1 tagger
             lrPhase = 2;
-            forceRoles(true); // P1 tagger => count odd
-            resetRound(false);
+            forceRoles(true);   // P1 tagger, P2 runner
+            resetRound(false);  // NEW map + reset
           } else if(lrPhase === 2){
             lrPhase = 3;
             endLongestRunAndReturn();
@@ -486,7 +525,6 @@
     }
 
     function draw(){
-      // shake
       let sx = 0, sy = 0;
       if(shakeTicks > 0){
         shakeTicks--;
@@ -526,7 +564,7 @@
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // UI
+      // text
       const secondsLeft = Math.ceil(roundTicks / 50);
 
       g.fillStyle = "white";
@@ -539,7 +577,6 @@
       g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
       g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
 
-      // Longest-run HUD
       if(mode === "longest"){
         const p1Sec = (lrP1Time/50).toFixed(2);
         const p2Sec = (lrP2Time/50).toFixed(2);
@@ -554,7 +591,7 @@
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
     }
 
-    // Start menu + loop
+    // start menu + loop
     openMenu();
     requestAnimationFrame(step);
   </script>
