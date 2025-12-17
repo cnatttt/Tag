@@ -4,201 +4,86 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>2PlayerTag</title>
-
-  <!-- Menu/UI font (optional but nice) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
-
   <style>
-    :root{
-      --bgA:#07081c;
-      --bgB:#0a0c2a;
-      --gold:#ffd400;
-      --cyan:#00d6ff;
-      --mag:#ff2d6f;
-    }
-    html, body { height: 100%; margin: 0; }
-    body{
-      height:100%;
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-      font-family: system-ui, Arial;
-      background:
-        radial-gradient(circle at 50% 20%, rgba(255,212,0,.22), rgba(0,0,0,.70)),
-        linear-gradient(120deg, var(--bgA), var(--bgB) 55%, #120a2a);
-      color:#fff;
-    }
-
+    html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
     .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
+    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline:none; }
 
-    /* Canvas: keep same size + mechanics, just nicer frame */
-    canvas{
-      background: transparent;
-      border: 2px solid rgba(255,212,0,.85);
-      border-radius: 20px;
-      box-shadow: 0 22px 70px rgba(0,0,0,.60), 0 0 34px rgba(255,212,0,.16);
-      image-rendering: pixelated;
-      outline:none;
-    }
-
-    /* New menu */
     .ui{
       position: fixed; inset: 0;
       display:flex; align-items:center; justify-content:center;
-      padding: 18px;
-      background:
-        radial-gradient(circle at 50% 12%, rgba(0,214,255,.18), rgba(0,0,0,.75)),
-        radial-gradient(circle at 70% 25%, rgba(255,212,0,.18), rgba(0,0,0,0));
-      backdrop-filter: blur(10px);
+      background: radial-gradient(circle at 50% 20%, rgba(255,212,0,.18), rgba(0,0,0,.65));
     }
     .card{
-      width: min(640px, 94vw);
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(12,12,26,.72);
-      box-shadow: 0 30px 120px rgba(0,0,0,.65);
-      overflow:hidden;
-      position:relative;
+      width: min(560px, 92vw);
+      background: rgba(10,10,25,.92);
+      border: 2px solid rgba(255,212,0,.35);
+      border-radius: 18px;
+      padding: 20px;
+      color: #fff;
+      box-shadow: 0 22px 70px rgba(0,0,0,.55);
+      position: relative;
+      overflow: hidden;
     }
-    .card::before{
-      content:"";
-      position:absolute; inset:-2px;
-      background: conic-gradient(from 180deg,
-        rgba(0,214,255,.0),
-        rgba(0,214,255,.35),
-        rgba(255,212,0,.30),
-        rgba(255,45,111,.30),
-        rgba(0,214,255,.0)
-      );
-      filter: blur(18px);
-      opacity:.55;
+    .glow{
+      position:absolute; inset:-40px;
+      background: conic-gradient(from 180deg, rgba(0,180,255,.0), rgba(0,180,255,.25), rgba(255,212,0,.2), rgba(0,180,255,.0));
+      filter: blur(30px);
+      opacity: .55;
+      animation: spin 6s linear infinite;
       pointer-events:none;
-      animation: spin 8s linear infinite;
     }
     @keyframes spin{ to{ transform: rotate(360deg); } }
 
-    .inner{
-      position:relative;
-      padding: 18px 18px 16px;
-    }
-    .top{
-      display:flex; align-items:flex-end; justify-content:space-between;
-      gap: 12px; flex-wrap:wrap;
-      margin-bottom: 12px;
-    }
-    .brand{
-      font-family: Orbitron, system-ui, Arial;
-      letter-spacing: .06em;
-      line-height:1.1;
-    }
-    .brand .title{
-      font-size: 26px;
-      font-weight: 800;
-      margin: 0;
-    }
-    .brand .sub{
-      margin: 6px 0 0;
-      opacity:.85;
-      font-size: 12px;
-    }
-    .badge{
-      display:flex; align-items:center; gap:8px;
-      padding: 8px 10px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.25);
-      border: 1px solid rgba(255,255,255,.10);
-      font-family: Orbitron, system-ui, Arial;
-      font-size: 12px;
-      opacity:.95;
-      white-space:nowrap;
-    }
-    .dot{
-      width:10px;height:10px;border-radius:999px;
-      background: var(--gold);
-      box-shadow: 0 0 18px rgba(255,212,0,.45);
-    }
-
-    .desc{
-      margin: 10px 0 12px;
-      opacity:.9;
-      line-height: 1.4;
-      font-size: 13px;
-    }
+    .title{ font-size: 26px; font-weight: 900; margin: 0 0 4px; letter-spacing: .4px; }
+    .dev{ opacity:.9; margin: 0 0 14px; font-weight: 700; }
+    .sub{ opacity: .85; margin: 0 0 14px; line-height: 1.35; }
 
     .row{ display:flex; gap: 12px; flex-wrap: wrap; align-items:center; }
-    .panel{
+    button{
+      cursor:pointer;
+      border: 2px solid rgba(0,180,255,.35);
+      background: rgba(18,18,50,.9);
+      color:#fff;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+    }
+    button:hover{ background: rgba(25,25,70,.95); border-color: rgba(255,212,0,.5); }
+    button:active{ transform: translateY(1px); }
+
+    .sliderBox, .modeBox{
       flex: 1 1 220px;
-      border-radius: 16px;
-      padding: 12px 12px;
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.10);
+      border: 2px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.04);
     }
-    .panel label{
-      display:flex; justify-content:space-between; gap:10px;
-      font-weight:800; opacity:.95;
-      font-family: Orbitron, system-ui, Arial;
-      font-size: 12px;
-      letter-spacing:.04em;
-    }
-    input[type="range"]{ width:100%; margin-top: 10px; }
+    .sliderBox label, .modeBox label{ display:flex; justify-content:space-between; font-weight:800; opacity:.95; }
+    input[type="range"]{ width: 100%; margin-top: 8px; }
+
     select{
       width:100%;
-      margin-top: 10px;
+      margin-top: 8px;
       padding:10px 10px;
-      border-radius:14px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.28);
+      border-radius:10px;
+      border:2px solid rgba(0,180,255,.25);
+      background: rgba(18,18,50,.9);
       color:#fff;
       font-weight:800;
       outline:none;
-      font-family: system-ui, Arial;
     }
 
-    .btns{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    button{
-      cursor:pointer;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.22);
-      color:#fff;
-      padding: 12px 14px;
-      font-weight: 900;
-      letter-spacing: .02em;
-      transition: transform .06s ease, filter .15s ease, border-color .15s ease, background .15s ease;
-      box-shadow: 0 16px 40px rgba(0,0,0,.35);
-      font-family: Orbitron, system-ui, Arial;
-    }
-    button.primary{
-      border-color: rgba(255,212,0,.55);
-      background: rgba(255,212,0,.10);
-    }
-    button:hover{ filter: brightness(1.06); border-color: rgba(255,212,0,.55); }
-    button:active{ transform: translateY(1px); }
-
-    .hint{
-      margin-top: 12px;
-      opacity:.9;
-      font-size: 12px;
-      line-height:1.55;
-    }
-    kbd{
-      background: rgba(0,0,0,.35);
-      border: 1px solid rgba(255,255,255,.12);
-      border-bottom-width: 2px;
-      padding: 2px 6px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
+    .hint{ margin-top: 14px; opacity:.9; font-size: 13px; line-height:1.45; }
+    kbd{ background:#111; border:1px solid #333; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
     .tip{
       margin-top: 10px;
       font-size: 12px;
-      opacity:.9;
+      opacity: .85;
       padding: 10px 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,212,0,.22);
+      border-radius: 12px;
+      border: 1px solid rgba(255,212,0,.25);
       background: rgba(255,212,0,.06);
     }
   </style>
@@ -208,806 +93,569 @@
     <canvas id="c" width="800" height="800"></canvas>
   </div>
 
-  <!-- Menu -->
   <div class="ui" id="menu">
     <div class="card">
-      <div class="inner">
-        <div class="top">
-          <div class="brand">
-            <p class="title">2PlayerTag</p>
-            <p class="sub">Dev: Mcant • Neon Yellow Edition</p>
-          </div>
-          <div class="badge"><span class="dot"></span><span id="modeBadge">Classic</span></div>
+      <div class="glow"></div>
+
+      <p class="title">2PlayerTag</p>
+      <p class="dev">Dev: Mcant</p>
+      <p class="sub" id="modeDesc">
+        Classic: Survive <b>20 seconds</b> as runner to score.
+        <br/><b>First to 10</b> wins → back to menu.
+      </p>
+
+      <div class="row">
+        <button id="play">PLAY</button>
+        <button id="resetScore">RESET SCORE</button>
+
+        <div class="modeBox">
+          <label>
+            <span>Game Mode</span>
+            <span id="modeLabel">Classic</span>
+          </label>
+          <select id="mode">
+            <option value="classic" selected>Classic (First to 10)</option>
+            <option value="longest">Longest Run (2 rounds)</option>
+          </select>
         </div>
 
-        <div class="desc" id="modeDesc">
-          Classic: Survive <b>20 seconds</b> as runner to score.
-          <br><b>First to 10</b> wins → back to menu.
+        <div class="sliderBox">
+          <label>
+            <span>Volume</span>
+            <span id="volLabel">70%</span>
+          </label>
+          <input id="vol" type="range" min="0" max="100" value="70" />
         </div>
-
-        <div class="row">
-          <div class="btns">
-            <button class="primary" id="play">PLAY</button>
-            <button id="resetScore">RESET SCORE</button>
-          </div>
-
-          <div class="panel">
-            <label><span>Game Mode</span><span id="modeLabel">Classic</span></label>
-            <select id="mode">
-              <option value="classic" selected>Classic (First to 10)</option>
-              <option value="longest">Longest Run (2 rounds)</option>
-            </select>
-          </div>
-
-          <div class="panel">
-            <label><span>Volume</span><span id="volLabel">70%</span></label>
-            <input id="vol" type="range" min="0" max="100" value="70" />
-          </div>
-        </div>
-
-        <div class="hint">
-          <div><b>P1 (top-left):</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
-          <div><b>P2 (bottom-right):</b> Arrow Keys</div>
-          <div style="margin-top:8px;">Press <b>Esc</b> to go back to the menu.</div>
-          <div style="margin-top:8px; opacity:.85;">
-            (Audio starts after your first click/key press because browsers block autoplay.)
-          </div>
-        </div>
-
-        <div class="tip" id="tipBox">Tip: (loads when you open the menu)</div>
       </div>
+
+      <div class="hint">
+        <div><b>Player 1 (top-left):</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <div><b>Player 2 (bottom-right):</b> Arrow Keys</div>
+        <div style="margin-top:8px;">Press <b>Esc</b> to go back to the menu.</div>
+        <div style="margin-top:8px; font-size:12px; opacity:.85;">
+          (Audio starts after your first click/key press because browsers block autoplay.)
+        </div>
+      </div>
+
+      <div class="tip" id="tipBox">Tip: (loads when you open the menu)</div>
     </div>
   </div>
 
-<script>
-  const canvas = document.getElementById("c");
-  const g = canvas.getContext("2d");
+  <script>
+    const canvas = document.getElementById("c");
+    const g = canvas.getContext("2d");
 
-  const menu = document.getElementById("menu");
-  const playBtn = document.getElementById("play");
-  const resetScoreBtn = document.getElementById("resetScore");
-  const vol = document.getElementById("vol");
-  const volLabel = document.getElementById("volLabel");
-  const tipBox = document.getElementById("tipBox");
+    const menu = document.getElementById("menu");
+    const playBtn = document.getElementById("play");
+    const resetScoreBtn = document.getElementById("resetScore");
+    const vol = document.getElementById("vol");
+    const volLabel = document.getElementById("volLabel");
+    const tipBox = document.getElementById("tipBox");
 
-  const modeSel = document.getElementById("mode");
-  const modeLabel = document.getElementById("modeLabel");
-  const modeDesc = document.getElementById("modeDesc");
-  const modeBadge = document.getElementById("modeBadge");
+    const modeSel = document.getElementById("mode");
+    const modeLabel = document.getElementById("modeLabel");
+    const modeDesc = document.getElementById("modeDesc");
 
-  const W = canvas.width, H = canvas.height;
+    const W = canvas.width, H = canvas.height;
 
-  // =========================
-  // SOUND (kept your music; upgraded SFX)
-  // =========================
-  let volume = 0.70;
+    // =========================
+    // SOUND (beeps + 8-bit background music)
+    // =========================
+    let volume = 0.70;
 
-  const audio = {
-    ctx: null,
-    musicMaster: null,
-    musicRunning: false,
-    step: 0,
-    timer: null
-  };
+    const audio = {
+      ctx: null,
+      musicMaster: null,
+      musicRunning: false,
+      step: 0,
+      timer: null
+    };
 
-  function ensureAudio(){
-    if(audio.ctx) return;
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if(!AudioCtx) return;
+    function ensureAudio(){
+      if(audio.ctx) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(!AudioCtx) return;
 
-    audio.ctx = new AudioCtx();
-    audio.musicMaster = audio.ctx.createGain();
-    audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
-    audio.musicMaster.connect(audio.ctx.destination);
-  }
-
-  function hzFromMidi(m){ return 440 * Math.pow(2, (m - 69) / 12); }
-
-  function tone(freq=440, dur=0.06, type="square", amp=0.08){
-    if(volume <= 0) return;
-    ensureAudio();
-    if(!audio.ctx) return;
-
-    const t = audio.ctx.currentTime;
-    const o = audio.ctx.createOscillator();
-    const gain = audio.ctx.createGain();
-
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t);
-
-    const a = Math.max(0.0001, volume * amp);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(a, t + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-    o.connect(gain);
-    gain.connect(audio.ctx.destination);
-
-    o.start(t);
-    o.stop(t + dur + 0.02);
-  }
-
-  function sfxTag(){
-    // crisp, punchy “hit”
-    tone(980, 0.045, "square", 0.12);
-    setTimeout(()=>tone(740, 0.055, "square", 0.11), 40);
-    setTimeout(()=>tone(520, 0.08, "triangle", 0.09), 90);
-  }
-  function sfxScore(){
-    // win/score sparkle
-    tone(660, 0.045, "square", 0.09);
-    setTimeout(()=>tone(880, 0.05, "square", 0.09), 55);
-    setTimeout(()=>tone(990, 0.07, "triangle", 0.08), 110);
-  }
-  function sfxTimeUp(){
-    // time-up bleep
-    tone(240, 0.09, "sawtooth", 0.08);
-    setTimeout(()=>tone(190, 0.10, "sawtooth", 0.07), 70);
-  }
-  function sfxMenu(){
-    tone(420, 0.03, "square", 0.06);
-    setTimeout(()=>tone(660, 0.03, "square", 0.06), 70);
-  }
-
-  function playMusicNote(freq, dur, amp=0.22){
-    if(!audio.musicRunning || !audio.ctx || !audio.musicMaster) return;
-
-    const t = audio.ctx.currentTime;
-    const o = audio.ctx.createOscillator();
-    const eg = audio.ctx.createGain();
-
-    o.type = "square";
-    o.frequency.setValueAtTime(freq, t);
-
-    eg.gain.setValueAtTime(0.0001, t);
-    eg.gain.linearRampToValueAtTime(amp, t + 0.01);
-    eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-    o.connect(eg);
-    eg.connect(audio.musicMaster);
-
-    o.start(t);
-    o.stop(t + dur + 0.02);
-  }
-
-  function startMusic(){
-    ensureAudio();
-    if(!audio.ctx || audio.musicRunning) return;
-
-    audio.musicRunning = true;
-    audio.step = 0;
-
-    const bass = [36,36,43,43,41,41,38,38, 36,36,43,43,41,41,38,38];
-    const lead = [60,62,64,67, 64,62,60,62, 64,67,69,67, 64,62,60,57];
-    const sparkle = [72, null, 74, null, 76, null, 79, null, 76, null, 74, null, 72, null, 69, null];
-
-    const stepMs = 120;
-    audio.timer = setInterval(() => {
-      if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
-
-      const i = audio.step % lead.length;
-
-      if((audio.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
-      playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
-
-      const s = sparkle[audio.step % sparkle.length];
-      if(s != null && (audio.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
-
-      audio.step++;
-    }, stepMs);
-  }
-
-  // unlock audio on first gesture
-  window.addEventListener("pointerdown", startMusic, {once:false});
-  window.addEventListener("keydown", startMusic, {once:false});
-
-  vol.addEventListener("input", () => {
-    volume = Number(vol.value) / 100;
-    volLabel.textContent = Math.round(volume * 100) + "%";
-    tone(660, 0.03, "square", 0.06);
-  });
-
-  // =========================
-  // MAP (UNCHANGED)
-  // =========================
-  const obs = [
-    {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
-    {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
-
-    {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
-    {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
-
-    {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
-    {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
-
-    {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
-    {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
-  ];
-
-  // =========================
-  // COLLISION (UNCHANGED MECHANICS)
-  // =========================
-  function rectsIntersect(a,b){
-    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  }
-  function rectIntersectsAny(r){
-    for(const o of obs){
-      if(rectsIntersect(r, o)) return true;
+      audio.ctx = new AudioCtx();
+      audio.musicMaster = audio.ctx.createGain();
+      audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
+      audio.musicMaster.connect(audio.ctx.destination);
     }
-    return false;
-  }
-  function tryMove(x, y, dx, dy, size){
-    let nx = x, ny = y;
 
-    nx += dx;
-    let testX = {x:nx, y:y, w:size, h:size};
-    if(rectIntersectsAny(testX)) nx = x;
+    function hzFromMidi(m){ return 440 * Math.pow(2, (m - 69) / 12); }
 
-    ny += dy;
-    let testY = {x:nx, y:ny, w:size, h:size};
-    if(rectIntersectsAny(testY)) ny = y;
+    function beep(freq=440, dur=0.04){
+      if(volume <= 0) return;
+      ensureAudio();
+      if(!audio.ctx) return;
 
-    nx = Math.max(0, Math.min(W - size, nx));
-    ny = Math.max(0, Math.min(H - size, ny));
-    return {x:nx, y:ny};
-  }
-  function slideMove(p, dx, dy, size){
-    const nxt = tryMove(p.x, p.y, dx, dy, size);
-    p.x = nxt.x; p.y = nxt.y;
-  }
+      const t = audio.ctx.currentTime;
+      const o = audio.ctx.createOscillator();
+      const gain = audio.ctx.createGain();
 
-  // =========================
-  // VISUALS (NEW + better colors)
-  // =========================
-  const C = {
-    gold: "#ffd400",
-    cyan: "#00d6ff",
-    mag:  "#ff2d6f",
-    bg0:  "#06071a",
-    bg1:  "#0b0d2a",
-    bg2:  "#0d0782",
-    wallFill: "rgba(0,214,255,0.16)",
-    wallFill2:"rgba(0,214,255,0.08)",
-    wallStroke:"rgba(255,255,255,0.70)"
-  };
+      o.type = "square";
+      o.frequency.setValueAtTime(freq, t);
 
-  function roundRectPath(ctx, x, y, w, h, r){
-    r = Math.max(0, Math.min(r, Math.min(w,h)/2));
-    ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
-    ctx.closePath();
-  }
+      gain.gain.setValueAtTime(Math.max(0.0001, volume * 0.08), t);
 
-  // Particles (blue + pink + gold)
-  const parts = [];
-  function spawnBurst(cx, cy, color, n=28, speed=3.9){
-    for(let i=0;i<n;i++){
-      const a = Math.random()*Math.PI*2;
-      const s = (0.7 + Math.random()) * speed;
-      parts.push({
-        x: cx, y: cy,
-        vx: Math.cos(a)*s,
-        vy: Math.sin(a)*s,
-        life: 22 + Math.random()*18,
-        r: 1.5 + Math.random()*2.6,
-        color
-      });
+      o.connect(gain);
+      gain.connect(audio.ctx.destination);
+
+      o.start(t);
+      o.stop(t + dur);
     }
-  }
-  function spawnSpark(cx, cy, color){
-    parts.push({
-      x: cx + (Math.random()*6-3),
-      y: cy + (Math.random()*6-3),
-      vx: (Math.random()*1.2-0.6),
-      vy: (Math.random()*1.2-0.6),
-      life: 10 + Math.random()*10,
-      r: 1.2 + Math.random()*1.9,
-      color
+
+    function playMusicNote(freq, dur, amp=0.22){
+      if(!audio.musicRunning || !audio.ctx || !audio.musicMaster) return;
+
+      const t = audio.ctx.currentTime;
+      const o = audio.ctx.createOscillator();
+      const eg = audio.ctx.createGain();
+
+      o.type = "square";
+      o.frequency.setValueAtTime(freq, t);
+
+      eg.gain.setValueAtTime(0.0001, t);
+      eg.gain.linearRampToValueAtTime(amp, t + 0.01);
+      eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+      o.connect(eg);
+      eg.connect(audio.musicMaster);
+
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+
+    function startMusic(){
+      ensureAudio();
+      if(!audio.ctx || audio.musicRunning) return;
+
+      audio.musicRunning = true;
+      audio.step = 0;
+
+      const bass = [36,36,43,43,41,41,38,38, 36,36,43,43,41,41,38,38];
+      const lead = [60,62,64,67, 64,62,60,62, 64,67,69,67, 64,62,60,57];
+      const sparkle = [72, null, 74, null, 76, null, 79, null, 76, null, 74, null, 72, null, 69, null];
+
+      const stepMs = 120;
+      audio.timer = setInterval(() => {
+        if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
+
+        const i = audio.step % lead.length;
+
+        if((audio.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
+        playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
+
+        const s = sparkle[audio.step % sparkle.length];
+        if(s != null && (audio.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
+
+        audio.step++;
+      }, stepMs);
+    }
+
+    // unlock audio on first gesture
+    window.addEventListener("pointerdown", startMusic, {once:false});
+    window.addEventListener("keydown", startMusic, {once:false});
+
+    vol.addEventListener("input", () => {
+      volume = Number(vol.value) / 100;
+      volLabel.textContent = Math.round(volume * 100) + "%";
+      beep(660, 0.03);
     });
-  }
-  function updateParticles(){
-    for(let i=parts.length-1;i>=0;i--){
-      const p = parts[i];
-      p.life -= 1;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vx *= 0.95;
-      p.vy *= 0.95;
-      if(p.life <= 0) parts.splice(i,1);
+
+    // =========================
+    // ONLY ONE MAP (OG map)
+    // =========================
+    const obs = [
+      {x:160,y:160,w:280,h:20},{x:520,y:160,w:120,h:20},
+      {x:160,y:620,w:120,h:20},{x:360,y:620,w:280,h:20},
+
+      {x:160,y:160,w:20,h:220},{x:160,y:460,w:20,h:180},
+      {x:620,y:160,w:20,h:180},{x:620,y:460,w:20,h:180},
+
+      {x:360,y:260,w:30,h:30},{x:430,y:260,w:30,h:30},
+      {x:360,y:510,w:30,h:30},{x:430,y:510,w:30,h:30},
+
+      {x:90,y:280,w:60,h:20},{x:90,y:500,w:60,h:20},
+      {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
+    ];
+
+    // =========================
+    // COLLISION
+    // =========================
+    function rectsIntersect(a,b){
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
-  }
-  function drawParticles(){
-    for(const p of parts){
-      const a = Math.max(0, Math.min(1, p.life/26));
-      g.save();
-      g.globalAlpha = a;
-      g.shadowBlur = 14;
-      g.shadowColor = p.color;
-      g.fillStyle = p.color;
-      g.beginPath();
-      g.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      g.fill();
-      g.restore();
+    function rectIntersectsAny(r){
+      for(const o of obs){
+        if(rectsIntersect(r, o)) return true;
+      }
+      return false;
     }
-  }
 
-  function drawArenaBG(){
-    const t = performance.now();
+    function tryMove(x, y, dx, dy, size){
+      let nx = x, ny = y;
 
-    // Deep base
-    g.fillStyle = C.bg2;
-    g.fillRect(0,0,W,H);
+      nx += dx;
+      let testX = {x:nx, y:y, w:size, h:size};
+      if(rectIntersectsAny(testX)) nx = x;
 
-    // two glows
-    const g1 = g.createRadialGradient(W*0.50, H*0.35, 40, W*0.50, H*0.55, W*0.95);
-    g1.addColorStop(0, `rgba(255,212,0,${0.14 + 0.05*Math.sin(t*0.002)})`);
-    g1.addColorStop(1, "rgba(0,0,0,0)");
-    g.fillStyle = g1; g.fillRect(0,0,W,H);
+      ny += dy;
+      let testY = {x:nx, y:ny, w:size, h:size};
+      if(rectIntersectsAny(testY)) ny = y;
 
-    const g2 = g.createRadialGradient(W*0.20, H*0.75, 40, W*0.20, H*0.75, W*0.65);
-    g2.addColorStop(0, `rgba(0,214,255,${0.10 + 0.05*Math.sin(t*0.0016+1.4)})`);
-    g2.addColorStop(1, "rgba(0,0,0,0)");
-    g.fillStyle = g2; g.fillRect(0,0,W,H);
+      nx = Math.max(0, Math.min(W - size, nx));
+      ny = Math.max(0, Math.min(H - size, ny));
+      return {x:nx, y:ny};
+    }
+    function slideMove(p, dx, dy, size){
+      const nxt = tryMove(p.x, p.y, dx, dy, size);
+      p.x = nxt.x; p.y = nxt.y;
+    }
 
-    // Neon grid (cleaner)
-    g.save();
-    g.globalAlpha = 0.22;
-    g.lineWidth = 1;
-    g.strokeStyle = "rgba(255,212,0,0.30)";
-    for(let x=0;x<=W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
-    for(let y=0;y<=H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
-    g.restore();
-
-    // vignette
-    const v = g.createRadialGradient(W/2,H/2, W*0.10, W/2,H/2, W*0.86);
-    v.addColorStop(0,"rgba(0,0,0,0)");
-    v.addColorStop(1,"rgba(0,0,0,0.62)");
-    g.fillStyle = v;
-    g.fillRect(0,0,W,H);
-  }
-
-  function drawWall(r){
-    const t = performance.now();
-    const rr = Math.min(14, Math.min(r.w, r.h)/2);
-
-    // Glow pass (yellow + cyan)
-    g.save();
-    g.shadowBlur = 22;
-    g.shadowColor = "rgba(255,212,0,0.22)";
-    g.fillStyle = "rgba(0,214,255,0.10)";
-    roundRectPath(g, r.x, r.y, r.w, r.h, rr);
-    g.fill();
-    g.restore();
-
-    g.save();
-    g.shadowBlur = 20;
-    g.shadowColor = "rgba(0,214,255,0.22)";
-    g.fillStyle = C.wallFill;
-    roundRectPath(g, r.x, r.y, r.w, r.h, rr);
-    g.fill();
-    g.restore();
-
-    // Inner gradient for depth
-    g.save();
-    const lg = g.createLinearGradient(r.x, r.y, r.x+r.w, r.y+r.h);
-    lg.addColorStop(0, "rgba(0,214,255,0.18)");
-    lg.addColorStop(1, "rgba(0,214,255,0.06)");
-    g.fillStyle = lg;
-    roundRectPath(g, r.x+1, r.y+1, r.w-2, r.h-2, Math.max(0, rr-1));
-    g.fill();
-
-    // Crisp outline
-    g.lineWidth = 2;
-    g.strokeStyle = "rgba(255,255,255,0.65)";
-    roundRectPath(g, r.x, r.y, r.w, r.h, rr);
-    g.stroke();
-
-    // Neon edge shine
-    const shine = 0.10 + 0.10*Math.sin(t*0.004 + (r.x+r.y)*0.01);
-    g.lineWidth = 1;
-    g.strokeStyle = `rgba(255,212,0,${shine})`;
-    roundRectPath(g, r.x+1, r.y+1, r.w-2, r.h-2, Math.max(0, rr-1));
-    g.stroke();
-
-    g.restore();
-  }
-
-  function drawPlayerCircle(px, py, size, isTagger, who){
-    // VISUAL ONLY: collision stays square
-    const cx = px + size/2;
-    const cy = py + size/2;
-    const rad = size/2;
-
-    const fill = isTagger ? C.mag : "#ffffff";
-    const glow = isTagger ? "rgba(255,45,111,0.40)" : "rgba(255,255,255,0.18)";
-    const trail = (who === "p1") ? "rgba(0,214,255,0.95)" : "rgba(255,45,111,0.95)";
-
-    // trail sparks
-    spawnSpark(cx, cy, trail);
-    if(isTagger) spawnSpark(cx, cy, "rgba(255,212,0,0.70)");
-
-    // body glow
-    g.save();
-    g.shadowBlur = 22;
-    g.shadowColor = glow;
-    g.fillStyle = fill;
-    g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI*2); g.fill();
-    g.restore();
-
-    // outline
-    g.save();
-    g.lineWidth = 2.5;
-    g.strokeStyle = "rgba(0,0,0,0.25)";
-    g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI*2); g.stroke();
-    g.restore();
-
-    // tagger ring
-    if(isTagger){
+    // =========================
+    // GLOW WALL DRAW (NEW)
+    // =========================
+    function glowRect(x, y, w, h){
       g.save();
+
+      // outer glow
       g.shadowBlur = 22;
-      g.shadowColor = "rgba(255,212,0,0.40)";
-      g.lineWidth = 4;
-      g.strokeStyle = "rgba(255,212,0,0.95)";
-      g.beginPath(); g.arc(cx, cy, rad + 7, 0, Math.PI*2); g.stroke();
+      g.shadowColor = "rgba(0,180,255,0.55)";
+      g.fillStyle = "rgba(0,180,255,0.35)";
+      g.fillRect(x, y, w, h);
+
+      // bright core
+      g.shadowBlur = 0;
+      g.fillStyle = "rgb(0,180,255)";
+      g.fillRect(x+1, y+1, w-2, h-2);
+
+      // white outline
+      g.strokeStyle = "rgba(255,255,255,0.9)";
+      g.lineWidth = 2;
+      g.strokeRect(x+0.5, y+0.5, w-1, h-1);
+
+      // yellow accent edge (matches your theme)
+      g.strokeStyle = "rgba(255,212,0,0.5)";
+      g.lineWidth = 1;
+      g.strokeRect(x+1.5, y+1.5, w-3, h-3);
+
       g.restore();
     }
 
-    // highlight
-    g.save();
-    const hg = g.createRadialGradient(cx-rad*0.35, cy-rad*0.35, 2, cx, cy, rad);
-    hg.addColorStop(0, "rgba(255,255,255,0.40)");
-    hg.addColorStop(1, "rgba(255,255,255,0)");
-    g.fillStyle = hg;
-    g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI*2); g.fill();
-    g.restore();
-  }
+    // =========================
+    // GAME STATE
+    // =========================
+    const base = 20;
+    const big  = base + 10;
 
-  function drawBorder(secondsLeft){
-    const t = performance.now();
-    const low = secondsLeft <= 5 ? (0.20 + 0.22*Math.sin(t*0.016)) : 0.12;
+    const p1 = { x:30,  y:30,  score:0 }; // WASD
+    const p2 = { x:740, y:740, score:0 }; // Arrows
 
-    g.save();
-    g.shadowBlur = 24;
-    g.shadowColor = `rgba(255,212,0,${0.22 + low})`;
-    g.lineWidth = 3;
-    g.strokeStyle = `rgba(255,212,0,${0.85 + low})`;
-    roundRectPath(g, 1.5, 1.5, W-3, H-3, 18);
-    g.stroke();
-    g.restore();
-  }
+    let count = 0;
 
-  // =========================
-  // GAME STATE (UNCHANGED)
-  // =========================
-  const base = 20;
-  const big  = base + 10;
+    const ROUND_TICKS = 1000; // 20s @ 50fps
+    let roundTicks = ROUND_TICKS;
 
-  const p1 = { x:30,  y:30,  score:0 }; // WASD
-  const p2 = { x:740, y:740, score:0 }; // Arrows
+    const SPEED = 8;
+    const TAG_SPEED = SPEED + 1;
+    const TAG_REACH = 4;
 
-  let count = 0;
+    const WIN_POINTS = 10;
 
-  const ROUND_TICKS = 1000; // 20s @ 50fps
-  let roundTicks = ROUND_TICKS;
+    let running = false;
+    let shakeTicks = 0;
 
-  const SPEED = 8;
-  const TAG_SPEED = SPEED + 1;
-  const TAG_REACH = 4;
+    // modes
+    let mode = "classic";
+    let lrPhase = 0;   // 0=none, 1=P1 runner, 2=P2 runner, 3=done
+    let lrP1Time = 0;  // ticks survived as runner
+    let lrP2Time = 0;
 
-  const WIN_POINTS = 10;
+    const keys = new Set();
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape"){ openMenu(); }
+      keys.add(e.key.toLowerCase());
+      if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
+    }, {passive:false});
+    window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
 
-  let running = false;
-  let shakeTicks = 0;
+    function isP1Tagger(){ return (count % 2 === 1); }
+    function sizeForP1(){ return isP1Tagger() ? big : base; }
+    function sizeForP2(){ return isP1Tagger() ? base : big; }
 
-  // modes
-  let mode = "classic";
-  let lrPhase = 0;   // 0=none, 1=P1 runner, 2=P2 runner, 3=done
-  let lrP1Time = 0;  // ticks survived as runner
-  let lrP2Time = 0;
+    function forceRoles(p1Tagger){ count = p1Tagger ? 1 : 0; }
 
-  const keys = new Set();
-  window.addEventListener("keydown", (e)=>{
-    if(e.key === "Escape"){ openMenu(); }
-    keys.add(e.key.toLowerCase());
-    if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
-  }, {passive:false});
-  window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
-
-  function isP1Tagger(){ return (count % 2 === 1); }
-  function sizeForP1(){ return isP1Tagger() ? big : base; }
-  function sizeForP2(){ return isP1Tagger() ? base : big; }
-  function forceRoles(p1Tagger){ count = p1Tagger ? 1 : 0; }
-
-  const tips = [
-    "Tip: Cut corners and use the middle blocks to juke.",
-    "Tip: Don’t run straight to the border—use pillars to reset distance.",
-    "Tip: Fake a direction change at the small squares—people over-commit.",
-    "Tip: If you get boxed, slide along obstacles instead of stopping.",
-    "Tip: Longest Run: each player gets ONE runner turn—make it count."
-  ];
-  function loadTip(){ tipBox.textContent = tips[Math.floor(Math.random()*tips.length)]; }
-
-  function updateModeUI(){
-    const isClassic = (modeSel.value === "classic");
-    modeLabel.textContent = isClassic ? "Classic" : "Longest Run";
-    modeBadge.textContent = isClassic ? "Classic" : "Longest Run";
-    if(isClassic){
-      modeDesc.innerHTML = `Classic: Survive <b>20 seconds</b> as runner to score.<br><b>First to 10</b> wins → back to menu.`;
-    } else {
-      modeDesc.innerHTML = `Longest Run: Two rounds total.<br>Each player gets <b>one</b> runner turn. Highest time wins.`;
+    const tips = [
+      "Tip: Cut corners and use the middle blocks to juke.",
+      "Tip: Don’t run straight to the border—use pillars to reset distance.",
+      "Tip: Fake a direction change at the small squares—people over-commit.",
+      "Tip: If you get boxed, slide along obstacles instead of stopping.",
+      "Tip: Longest Run: each player gets ONE runner turn—make it count."
+    ];
+    function loadTip(){
+      tipBox.textContent = tips[Math.floor(Math.random()*tips.length)];
     }
-  }
-  modeSel.addEventListener("change", ()=>{
+
+    function updateModeUI(){
+      modeLabel.textContent = (modeSel.value === "classic") ? "Classic" : "Longest Run";
+      if(modeSel.value === "classic"){
+        modeDesc.innerHTML = `Classic: Survive <b>20 seconds</b> as runner to score.<br/><b>First to 10</b> wins → back to menu.`;
+      } else {
+        modeDesc.innerHTML = `Longest Run: Two rounds total.<br/>Each player gets <b>one</b> runner turn. Highest time wins.`;
+      }
+    }
+    modeSel.addEventListener("change", ()=>{
+      updateModeUI();
+      beep(520, 0.03);
+    });
     updateModeUI();
-    tone(520, 0.03, "square", 0.06);
-  });
-  updateModeUI();
 
-  function openMenu(){
-    running = false;
-    menu.style.display = "flex";
-    loadTip();
+    function openMenu(){
+      running = false;
+      menu.style.display = "flex";
+      loadTip();
 
-    lrPhase = 0;
-    lrP1Time = 0;
-    lrP2Time = 0;
+      lrPhase = 0;
+      lrP1Time = 0;
+      lrP2Time = 0;
 
-    sfxMenu();
-  }
-
-  function resetRound(swapRoles=true){
-    p1.x = 30;  p1.y = 30;
-    p2.x = 740; p2.y = 740;
-    if(swapRoles) count++;
-    roundTicks = ROUND_TICKS;
-  }
-
-  function startClassic(){
-    mode = "classic";
-    p1.score = 0;
-    p2.score = 0;
-    count = 0;
-    resetRound(false);
-  }
-
-  function startLongest(){
-    mode = "longest";
-    p1.score = 0;
-    p2.score = 0;
-
-    lrPhase = 1;
-    lrP1Time = 0;
-    lrP2Time = 0;
-
-    // Phase 1: P1 runner, P2 tagger
-    forceRoles(false);
-    resetRound(false);
-  }
-
-  function endClassicToMenu(){
-    const winner = (p1.score > p2.score) ? "P1" : "P2";
-    openMenu();
-    tipBox.textContent = `🏆 ${winner} WINS! Final Score — P1: ${p1.score} | P2: ${p2.score}`;
-    sfxScore();
-  }
-
-  function endLongestToMenu(){
-    const p1Sec = (lrP1Time/50).toFixed(2);
-    const p2Sec = (lrP2Time/50).toFixed(2);
-    let msg = "";
-    if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
-    else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
-    else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
-
-    openMenu();
-    tipBox.textContent = "🏁 Longest Run Results: " + msg;
-    sfxScore();
-  }
-
-  function startGame(){
-    startMusic();
-    running = true;
-    menu.style.display = "none";
-
-    if(modeSel.value === "classic") startClassic();
-    else startLongest();
-
-    tone(880, 0.04, "square", 0.08);
-  }
-
-  playBtn.onclick = startGame;
-
-  resetScoreBtn.onclick = ()=>{
-    p1.score = 0; p2.score = 0;
-    lrP1Time = 0; lrP2Time = 0; lrPhase = 0;
-    tone(330, 0.04, "square", 0.06);
-    setTimeout(()=>tone(220, 0.04, "square", 0.06), 60);
-    tipBox.textContent = "Scores reset.";
-  };
-
-  function step(){
-    update();
-    draw();
-    requestAnimationFrame(step);
-  }
-
-  function update(){
-    if(!running) return;
-
-    const p1Tag = isP1Tagger();
-    const p1Size = sizeForP1();
-    const p2Size = sizeForP2();
-
-    const p1Speed = p1Tag ? TAG_SPEED : SPEED;
-    const p2Speed = p1Tag ? SPEED : TAG_SPEED;
-
-    // P1 (WASD)
-    let p1dx = 0, p1dy = 0;
-    if(keys.has("w")) p1dy -= p1Speed;
-    if(keys.has("s")) p1dy += p1Speed;
-    if(keys.has("a")) p1dx -= p1Speed;
-    if(keys.has("d")) p1dx += p1Speed;
-    slideMove(p1, p1dx, p1dy, p1Size);
-
-    // P2 (Arrows)
-    let p2dx = 0, p2dy = 0;
-    if(keys.has("arrowup")) p2dy -= p2Speed;
-    if(keys.has("arrowdown")) p2dy += p2Speed;
-    if(keys.has("arrowleft")) p2dx -= p2Speed;
-    if(keys.has("arrowright")) p2dx += p2Speed;
-    slideMove(p2, p2dx, p2dy, p2Size);
-
-    if(roundTicks > 0) roundTicks--;
-
-    // tag check with reach buff (UNCHANGED)
-    let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
-    let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
-
-    if(p1Tag){
-      hb1 = {x:hb1.x - TAG_REACH, y:hb1.y - TAG_REACH, w:hb1.w + TAG_REACH*2, h:hb1.h + TAG_REACH*2};
-    } else {
-      hb2 = {x:hb2.x - TAG_REACH, y:hb2.y - TAG_REACH, w:hb2.w + TAG_REACH*2, h:hb2.h + TAG_REACH*2};
+      beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
     }
 
-    const tagged = rectsIntersect(hb1, hb2);
-
-    if(mode === "classic"){
-      if(tagged){
-        if(p1Tag) p1.score++; else p2.score++;
-        shakeTicks = 14;
-
-        // particles
-        const cx = (p1.x+p1Size/2 + p2.x+p2Size/2)/2;
-        const cy = (p1.y+p1Size/2 + p2.y+p2Size/2)/2;
-        spawnBurst(cx, cy, "rgba(0,214,255,0.95)", 24, 4.1);
-        spawnBurst(cx, cy, "rgba(255,45,111,0.95)", 24, 4.1);
-        spawnBurst(cx, cy, "rgba(255,212,0,0.95)", 12, 3.2);
-
-        sfxTag();
-
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endClassicToMenu();
-          return;
-        }
-        resetRound(true);
-      } else if(roundTicks <= 0){
-        if(p1Tag) p2.score++; else p1.score++;
-
-        spawnBurst(W/2, 64, "rgba(255,212,0,0.95)", 18, 3.0);
-        sfxTimeUp();
-
-        if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
-          endClassicToMenu();
-          return;
-        }
-        resetRound(true);
-      }
-    } else {
-      // Longest Run (UNCHANGED)
-      const p1Runner = !p1Tag;
-      const p2Runner = p1Tag;
-
-      if(lrPhase === 1 && p1Runner) lrP1Time++;
-      if(lrPhase === 2 && p2Runner) lrP2Time++;
-
-      if(tagged || roundTicks <= 0){
-        shakeTicks = 14;
-
-        const cx = (p1.x+p1Size/2 + p2.x+p2Size/2)/2;
-        const cy = (p1.y+p1Size/2 + p2.y+p2Size/2)/2;
-        spawnBurst(cx, cy, "rgba(0,214,255,0.95)", 24, 4.1);
-        spawnBurst(cx, cy, "rgba(255,45,111,0.95)", 24, 4.1);
-        spawnBurst(cx, cy, "rgba(255,212,0,0.95)", 12, 3.2);
-
-        sfxTag();
-
-        if(lrPhase === 1){
-          lrPhase = 2;
-          forceRoles(true);
-          resetRound(false);
-        } else if(lrPhase === 2){
-          lrPhase = 3;
-          endLongestToMenu();
-        }
-      }
+    function resetRound(swapRoles=true){
+      p1.x = 30;  p1.y = 30;
+      p2.x = 740; p2.y = 740;
+      if(swapRoles) count++;
+      roundTicks = ROUND_TICKS;
     }
 
-    updateParticles();
-  }
-
-  function draw(){
-    let sx = 0, sy = 0;
-    if(shakeTicks > 0){
-      shakeTicks--;
-      sx = (Math.random()*8 - 4);
-      sy = (Math.random()*8 - 4);
+    function startClassic(){
+      mode = "classic";
+      p1.score = 0;
+      p2.score = 0;
+      count = 0;
+      resetRound(false);
     }
 
-    g.setTransform(1,0,0,1,0,0);
-    g.clearRect(0,0,W,H);
-    g.setTransform(1,0,0,1,sx,sy);
+    function startLongest(){
+      mode = "longest";
+      p1.score = 0;
+      p2.score = 0;
 
-    drawArenaBG();
+      lrPhase = 1;
+      lrP1Time = 0;
+      lrP2Time = 0;
 
-    // walls (same map; rounded + glow)
-    for(const r of obs) drawWall(r);
+      // Phase 1: P1 runner, P2 tagger
+      forceRoles(false);
+      resetRound(false);
+    }
 
-    // players (circles visually; same mechanics)
-    const p1Tag = isP1Tagger();
-    const p1Size = sizeForP1();
-    const p2Size = sizeForP2();
-    drawPlayerCircle(p1.x, p1.y, p1Size, p1Tag, "p1");
-    drawPlayerCircle(p2.x, p2.y, p2Size, !p1Tag, "p2");
+    function endClassicToMenu(){
+      const winner = (p1.score > p2.score) ? "P1" : "P2";
+      openMenu();
+      tipBox.textContent = `🏆 ${winner} WINS! Final Score — P1: ${p1.score} | P2: ${p2.score}`;
+      beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
+    }
 
-    drawParticles();
-
-    // UI text (kept same info; slightly cleaner look)
-    const secondsLeft = Math.ceil(roundTicks / 50);
-    drawBorder(secondsLeft);
-
-    g.fillStyle = "rgba(255,255,255,0.95)";
-    g.font = "16px system-ui, Arial";
-
-    if(mode === "classic"){
-      g.fillText(`P1: ${p1.score}`, 14, 22);
-      g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
-      g.fillText(`P2: ${p2.score}`, W-70, 22);
-      g.font = "13px system-ui, Arial";
-      g.fillStyle = "rgba(255,212,0,0.95)";
-      g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
-    } else {
+    function endLongestToMenu(){
       const p1Sec = (lrP1Time/50).toFixed(2);
       const p2Sec = (lrP2Time/50).toFixed(2);
-      g.fillStyle = "rgba(255,255,255,0.95)";
-      g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
-      g.font = "13px system-ui, Arial";
-      g.fillStyle = "rgba(255,212,0,0.95)";
-      g.fillText(`Longest Run`, (W/2)-40, 44);
-      g.fillStyle = "rgba(255,255,255,0.95)";
-      g.fillText(`P1 best: ${p1Sec}s`, 14, 22);
-      g.fillText(`P2 best: ${p2Sec}s`, W-120, 22);
-      g.fillText(`Round: ${Math.min(lrPhase,2)}/2`, (W/2)-30, 62);
+      let msg = "";
+      if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+      else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
+
+      openMenu();
+      tipBox.textContent = "🏁 Longest Run Results: " + msg;
+      beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
     }
 
-    g.font = "14px system-ui, Arial";
-    g.fillStyle = p1Tag ? "rgba(255,45,111,0.95)" : "rgba(0,214,255,0.95)";
-    g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
+    function startGame(){
+      startMusic(); // 8-bit music
+      running = true;
+      menu.style.display = "none";
 
-    g.fillStyle = p1Tag ? "rgba(0,214,255,0.95)" : "rgba(255,45,111,0.95)";
-    g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
+      if(modeSel.value === "classic") startClassic();
+      else startLongest();
 
-    g.font = "12px system-ui, Arial";
-    g.fillStyle = "rgba(255,255,255,0.88)";
-    g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
-  }
+      beep(880, 0.04);
+    }
 
-  // start menu + loop
-  openMenu();
-  requestAnimationFrame(step);
-</script>
+    playBtn.onclick = startGame;
+
+    resetScoreBtn.onclick = ()=>{
+      p1.score = 0; p2.score = 0;
+      lrP1Time = 0; lrP2Time = 0; lrPhase = 0;
+      beep(330, 0.04);
+      setTimeout(()=>beep(220, 0.04), 60);
+      tipBox.textContent = "Scores reset.";
+    };
+
+    function step(){
+      update();
+      draw();
+      requestAnimationFrame(step);
+    }
+
+    function update(){
+      if(!running) return;
+
+      const p1Tag = isP1Tagger();
+      const p1Size = sizeForP1();
+      const p2Size = sizeForP2();
+
+      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
+      const p2Speed = p1Tag ? SPEED : TAG_SPEED;
+
+      // P1 (WASD)
+      let p1dx = 0, p1dy = 0;
+      if(keys.has("w")) p1dy -= p1Speed;
+      if(keys.has("s")) p1dy += p1Speed;
+      if(keys.has("a")) p1dx -= p1Speed;
+      if(keys.has("d")) p1dx += p1Speed;
+      slideMove(p1, p1dx, p1dy, p1Size);
+
+      // P2 (Arrows)
+      let p2dx = 0, p2dy = 0;
+      if(keys.has("arrowup")) p2dy -= p2Speed;
+      if(keys.has("arrowdown")) p2dy += p2Speed;
+      if(keys.has("arrowleft")) p2dx -= p2Speed;
+      if(keys.has("arrowright")) p2dx += p2Speed;
+      slideMove(p2, p2dx, p2dy, p2Size);
+
+      if(roundTicks > 0) roundTicks--;
+
+      // tag check with reach buff
+      let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
+      let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
+
+      if(p1Tag){
+        hb1 = {x:hb1.x - TAG_REACH, y:hb1.y - TAG_REACH, w:hb1.w + TAG_REACH*2, h:hb1.h + TAG_REACH*2};
+      } else {
+        hb2 = {x:hb2.x - TAG_REACH, y:hb2.y - TAG_REACH, w:hb2.w + TAG_REACH*2, h:hb2.h + TAG_REACH*2};
+      }
+
+      const tagged = rectsIntersect(hb1, hb2);
+
+      if(mode === "classic"){
+        if(tagged){
+          if(p1Tag) p1.score++; else p2.score++;
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
+          }
+          resetRound(true);
+        } else if(roundTicks <= 0){
+          if(p1Tag) p2.score++; else p1.score++;
+          beep(660, 0.04); setTimeout(()=>beep(880, 0.04), 60);
+
+          if(p1.score >= WIN_POINTS || p2.score >= WIN_POINTS){
+            endClassicToMenu();
+            return;
+          }
+          resetRound(true);
+        }
+      } else {
+        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
+        const p1Runner = !p1Tag;
+        const p2Runner = p1Tag;
+
+        if(lrPhase === 1 && p1Runner) lrP1Time++;
+        if(lrPhase === 2 && p2Runner) lrP2Time++;
+
+        if(tagged || roundTicks <= 0){
+          shakeTicks = 14;
+          beep(220, 0.05); setTimeout(()=>beep(110, 0.06), 70);
+
+          if(lrPhase === 1){
+            lrPhase = 2;
+            // Phase 2: P2 runner, P1 tagger
+            forceRoles(true);
+            resetRound(false);
+          } else if(lrPhase === 2){
+            lrPhase = 3;
+            endLongestToMenu();
+          }
+        }
+      }
+    }
+
+    function draw(){
+      let sx = 0, sy = 0;
+      if(shakeTicks > 0){
+        shakeTicks--;
+        sx = (Math.random()*8 - 4);
+        sy = (Math.random()*8 - 4);
+      }
+
+      g.setTransform(1,0,0,1,0,0);
+      g.clearRect(0,0,W,H);
+      g.setTransform(1,0,0,1,sx,sy);
+
+      // grid
+      g.strokeStyle = "rgb(25,25,25)";
+      for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+      for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+
+      // obstacles (GLOW)
+      for(const r of obs){
+        glowRect(r.x, r.y, r.w, r.h);
+      }
+
+      // players
+      const p1Tag = isP1Tagger();
+      const p1Size = sizeForP1();
+      const p2Size = sizeForP2();
+
+      g.fillStyle = p1Tag ? "red" : "white";
+      g.fillRect(p1.x, p1.y, p1Size, p1Size);
+
+      g.fillStyle = p1Tag ? "white" : "red";
+      g.fillRect(p2.x, p2.y, p2Size, p2Size);
+
+      // border
+      g.strokeStyle = "#ffd400";
+      g.strokeRect(0.5,0.5,W-1,H-1);
+
+      // text
+      const secondsLeft = Math.ceil(roundTicks / 50);
+
+      g.fillStyle = "white";
+      g.font = "16px system-ui, Arial";
+
+      if(mode === "classic"){
+        g.fillText(`P1: ${p1.score}`, 14, 22);
+        g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
+        g.fillText(`P2: ${p2.score}`, W-70, 22);
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Classic • First to ${WIN_POINTS}`, (W/2)-70, 44);
+      } else {
+        const p1Sec = (lrP1Time/50).toFixed(2);
+        const p2Sec = (lrP2Time/50).toFixed(2);
+        g.fillText(`TIME: ${secondsLeft}`, (W/2)-34, 22);
+        g.font = "13px system-ui, Arial";
+        g.fillText(`Longest Run`, (W/2)-40, 44);
+        g.fillText(`P1 best: ${p1Sec}s`, 14, 22);
+        g.fillText(`P2 best: ${p2Sec}s`, W-120, 22);
+        g.fillText(`Round: ${Math.min(lrPhase,2)}/2`, (W/2)-30, 62);
+      }
+
+      g.font = "14px system-ui, Arial";
+      g.fillText(p1Tag ? "TAGGER" : "RUNNER", 14, 44);
+      g.fillText(p1Tag ? "RUNNER" : "TAGGER", W-82, 44);
+
+      g.font = "12px system-ui, Arial";
+      g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
+    }
+
+    // start menu + loop
+    openMenu();
+    requestAnimationFrame(step);
+  </script>
 </body>
 </html>
