@@ -106,6 +106,55 @@
     function rectsIntersect(a,b){
       return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
+    function rectIntersectsAny(r){
+      for(const o of obs){
+        if(rectsIntersect(r, o)) return true;
+      }
+      return false;
+    }
+    function dist(ax, ay, bx, by){
+      const dx = ax - bx, dy = ay - by;
+      return Math.hypot(dx, dy);
+    }
+    function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+    // "LOS" sampling (good enough)
+    function hasLOS(ax, ay, bx, by, size){
+      const steps = 10;
+      for(let i=1;i<=steps;i++){
+        const t = i/steps;
+        const x = ax + (bx-ax)*t;
+        const y = ay + (by-ay)*t;
+        const r = {x:x, y:y, w:size, h:size};
+        if(rectIntersectsAny(r)) return false;
+      }
+      return true;
+    }
+
+    // try a move without committing (sliding)
+    function tryMove(x, y, dx, dy, size){
+      let nx = x, ny = y;
+
+      // X slide
+      nx += dx;
+      let testX = {x:nx, y:y, w:size, h:size};
+      if(rectIntersectsAny(testX)) nx = x;
+
+      // Y slide
+      ny += dy;
+      let testY = {x:nx, y:ny, w:size, h:size};
+      if(rectIntersectsAny(testY)) ny = y;
+
+      // clamp
+      nx = Math.max(0, Math.min(W - size, nx));
+      ny = Math.max(0, Math.min(H - size, ny));
+
+      return {x:nx, y:ny};
+    }
+    function slideMove(p, dx, dy, size){
+      const nxt = tryMove(p.x, p.y, dx, dy, size);
+      p.x = nxt.x; p.y = nxt.y;
+    }
 
     // ---------- GAME STATE ----------
     const base = 20;
@@ -119,8 +168,8 @@
     // count%2==0 => P2 is big (tagger); count%2==1 => P1 is big (tagger)
     let count = 0;
 
-    // 12 seconds @ 20ms/tick => 50 ticks/sec => 600
-    const ROUND_TICKS = 1250;
+    // ✅ 20 seconds @ 50 ticks/sec
+    const ROUND_TICKS = 1000;
     let roundTicks = ROUND_TICKS;
 
     // fairness knobs
@@ -156,76 +205,24 @@
     function resetRound(swapRoles=true){
       p1.x = 30;  p1.y = 30;
       p2.x = 740; p2.y = 740;
-
       if(swapRoles) count++;
       roundTicks = ROUND_TICKS;
+
+      // reset AI state too (helps prevent immediate “stuck” behavior)
+      aiState.lastX = p2.x;
+      aiState.lastY = p2.y;
+      aiState.stuckTicks = 0;
+      aiState.escapeTicks = 0;
+      aiState.jitterTimer = 0;
     }
 
-    resetBtn.onclick = ()=>{
-      p1.score = 0; p2.score = 0;
-    };
+    resetBtn.onclick = ()=>{ p1.score = 0; p2.score = 0; };
     twoPBtn.onclick = ()=> startGame("2p");
     onePBtn.onclick = ()=> startGame("1p");
 
     function isP1Tagger(){ return (count % 2 === 1); }
-
     function sizeForP1(){ return isP1Tagger() ? big : base; }
     function sizeForP2(){ return isP1Tagger() ? base : big; }
-
-    function clampPlayer(p, size){
-      if(p.x < 0) p.x = 0;
-      if(p.y < 0) p.y = 0;
-      if(p.x + size > W) p.x = W - size;
-      if(p.y + size > H) p.y = H - size;
-    }
-
-    function rectIntersectsAny(r){
-      for(const o of obs){
-        if(rectsIntersect(r, o)) return true;
-      }
-      return false;
-    }
-
-    // try a move without committing (sliding)
-    function tryMove(x, y, dx, dy, size){
-      let nx = x, ny = y;
-
-      nx += dx;
-      let testX = {x:nx, y:y, w:size, h:size};
-      if(rectIntersectsAny(testX)) nx = x;
-
-      ny += dy;
-      let testY = {x:nx, y:ny, w:size, h:size};
-      if(rectIntersectsAny(testY)) ny = y;
-
-      nx = Math.max(0, Math.min(W - size, nx));
-      ny = Math.max(0, Math.min(H - size, ny));
-
-      return {x:nx, y:ny};
-    }
-
-    function slideMove(p, dx, dy, size){
-      const nxt = tryMove(p.x, p.y, dx, dy, size);
-      p.x = nxt.x; p.y = nxt.y;
-    }
-
-    function dist(ax, ay, bx, by){
-      const dx = ax - bx, dy = ay - by;
-      return Math.hypot(dx, dy);
-    }
-
-    // line-of-sight-ish check (sample along segment)
-    function hasLOS(ax, ay, bx, by, size){
-      const steps = 10;
-      for(let i=1;i<=steps;i++){
-        const t = i/steps;
-        const x = ax + (bx-ax)*t;
-        const y = ay + (by-ay)*t;
-        const r = {x:x, y:y, w:size, h:size};
-        if(rectIntersectsAny(r)) return false;
-      }
-      return true;
-    }
 
     // ---------- HUMAN-LIKE AI STATE ----------
     let aiState = {
@@ -239,73 +236,79 @@
       escapeTicks: 0
     };
 
-    function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+    // Wall repulsion (prevents corner camping)
+    function wallRepel(x, y, size){
+      const margin = 110;     // start pushing this far from walls
+      const strength = 1.35;  // push amount
+      let rx = 0, ry = 0;
 
-    // ---------- HUMAN-LIKE AI (replaces simple follow) ----------
+      const leftD   = x;
+      const rightD  = (W - size) - x;
+      const topD    = y;
+      const bottomD = (H - size) - y;
+
+      if(leftD < margin)   rx += (margin - leftD) / margin;
+      if(rightD < margin)  rx -= (margin - rightD) / margin;
+      if(topD < margin)    ry += (margin - topD) / margin;
+      if(bottomD < margin) ry -= (margin - bottomD) / margin;
+
+      const len = Math.hypot(rx, ry) || 1;
+      return { x: (rx/len)*strength, y: (ry/len)*strength };
+    }
+
+    // Obstacle repulsion (keeps it from sticking to blocks)
+    function obstacleRepel(x, y, size){
+      const strength = 1.10;
+      let rx = 0, ry = 0;
+
+      const cx = x + size/2;
+      const cy = y + size/2;
+
+      for(const o of obs){
+        const nx = Math.max(o.x, Math.min(cx, o.x + o.w));
+        const ny = Math.max(o.y, Math.min(cy, o.y + o.h));
+        const dx = cx - nx;
+        const dy = cy - ny;
+        const d = Math.hypot(dx, dy);
+
+        const radius = 80;
+        if(d > 0.001 && d < radius){
+          const push = (radius - d) / radius;
+          rx += (dx / d) * push;
+          ry += (dy / d) * push;
+        }
+      }
+
+      const len = Math.hypot(rx, ry) || 1;
+      return { x: (rx/len)*strength, y: (ry/len)*strength };
+    }
+
+    // ✅ HUMAN AI (works as tagger AND runner)
     function aiStep(){
-      const ai = p2;                 // AI controls P2 in 1P mode
-      const p1Tag = isP1Tagger();
-      const aiIsTagger = !p1Tag;
+      const ai = p2;                     // AI controls P2 in 1P mode
+      const p1Tagger = isP1Tagger();
+      const aiIsTagger = !p1Tagger;
 
-      const aiSize = sizeForP2();
+      const aiSize  = sizeForP2();
       const oppSize = sizeForP1();
-
       const opp = p1;
 
       const aiSpeed = aiIsTagger ? TAG_SPEED : SPEED;
 
-      // Optional: tiny "human reaction miss"
-      // if(Math.random() < 0.03) return;
-
-      // ----- STUCK DETECTION -----
+      // ---- stuck detection
       const moved = dist(ai.x, ai.y, aiState.lastX, aiState.lastY);
       aiState.lastX = ai.x;
       aiState.lastY = ai.y;
+      aiState.stuckTicks = (moved < 0.5) ? (aiState.stuckTicks + 1) : 0;
 
-      if(moved < 0.5) aiState.stuckTicks++;
-      else aiState.stuckTicks = 0;
-
-      // ----- TARGET PREDICTION (lead) -----
-      // Estimate P1 velocity from keys
-      let p1vx = 0, p1vy = 0;
-      const p1Speed = p1Tag ? TAG_SPEED : SPEED;
-      if(keys.has("w")) p1vy -= p1Speed;
-      if(keys.has("s")) p1vy += p1Speed;
-      if(keys.has("a")) p1vx -= p1Speed;
-      if(keys.has("d")) p1vx += p1Speed;
-
-      const lead = aiIsTagger ? 10 : 6; // tagger cuts off more
-      let tx = opp.x + p1vx * lead;
-      let ty = opp.y + p1vy * lead;
-
-      tx = Math.max(0, Math.min(W - oppSize, tx));
-      ty = Math.max(0, Math.min(H - oppSize, ty));
-
-      if(!hasLOS(ai.x, ai.y, tx, ty, aiSize)){
-        tx = opp.x; ty = opp.y;
-      }
-
-      // ----- JITTER (human wobble / jukes) -----
-      aiState.jitterTimer--;
-      if(aiState.jitterTimer <= 0){
-        aiState.jitterTimer = 10 + Math.floor(Math.random()*18); // 10-28 frames
-        aiState.jitterAngle = (Math.random()*Math.PI*2);
-      }
-      const jx = Math.cos(aiState.jitterAngle) * (aiIsTagger ? 0.12 : 0.22);
-      const jy = Math.sin(aiState.jitterAngle) * (aiIsTagger ? 0.12 : 0.22);
-
-      // ----- ESCAPE MODE WHEN STUCK / TRAPPED -----
+      // escape mode if stuck
       if(aiState.escapeTicks > 0){
         aiState.escapeTicks--;
-        const mx = aiState.escapeDx * aiSpeed;
-        const my = aiState.escapeDy * aiSpeed;
-        const movedTry = tryMove(ai.x, ai.y, mx, my, aiSize);
-        ai.x = movedTry.x;
-        ai.y = movedTry.y;
+        const nxt = tryMove(ai.x, ai.y, aiState.escapeDx * aiSpeed, aiState.escapeDy * aiSpeed, aiSize);
+        ai.x = nxt.x; ai.y = nxt.y;
         return;
       }
-
-      if(aiState.stuckTicks > 10){
+      if(aiState.stuckTicks > 12){
         aiState.stuckTicks = 0;
         const dirs = [
           {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},
@@ -314,10 +317,37 @@
         const pick = dirs[Math.floor(Math.random()*dirs.length)];
         aiState.escapeDx = pick.x;
         aiState.escapeDy = pick.y;
-        aiState.escapeTicks = 18;
+        aiState.escapeTicks = 22;
       }
 
-      // ----- DIRECTION SCORING -----
+      // ---- jitter (human wobble)
+      aiState.jitterTimer--;
+      if(aiState.jitterTimer <= 0){
+        aiState.jitterTimer = 12 + Math.floor(Math.random()*18);
+        aiState.jitterAngle = Math.random() * Math.PI * 2;
+      }
+      const jx = Math.cos(aiState.jitterAngle) * (aiIsTagger ? 0.08 : 0.22);
+      const jy = Math.sin(aiState.jitterAngle) * (aiIsTagger ? 0.08 : 0.22);
+
+      // ---- predict opponent a bit (lead)
+      let p1vx = 0, p1vy = 0;
+      const p1MoveSpeed = p1Tagger ? TAG_SPEED : SPEED;
+      if(keys.has("w")) p1vy -= p1MoveSpeed;
+      if(keys.has("s")) p1vy += p1MoveSpeed;
+      if(keys.has("a")) p1vx -= p1MoveSpeed;
+      if(keys.has("d")) p1vx += p1MoveSpeed;
+
+      const lead = aiIsTagger ? 11 : 6;
+      let tx = opp.x + p1vx * lead;
+      let ty = opp.y + p1vy * lead;
+      tx = Math.max(0, Math.min(W - oppSize, tx));
+      ty = Math.max(0, Math.min(H - oppSize, ty));
+
+      // ---- steering helpers
+      const wallPush = wallRepel(ai.x, ai.y, aiSize);
+      const obsPush  = obstacleRepel(ai.x, ai.y, aiSize);
+
+      // Candidate directions
       const dirs = [
         {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},
         {x:0.707,y:0.707},{x:0.707,y:-0.707},{x:-0.707,y:0.707},{x:-0.707,y:-0.707},
@@ -327,40 +357,98 @@
       let best = null;
       let bestScore = -1e9;
 
+      // vector to target (predicted)
+      let vx = tx - ai.x;
+      let vy = ty - ai.y;
+      let vlen = Math.hypot(vx, vy) || 1;
+      vx /= vlen; vy /= vlen;
+
+      // for tagger: add “side angle” to reduce wall-pin behavior
+      // perpendicular to target vector
+      const pxv = -vy;
+      const pyv = vx;
+
       for(const d of dirs){
-        const mx = (d.x + jx) * aiSpeed;
-        const my = (d.y + jy) * aiSpeed;
+        // base move dir
+        let mx = d.x;
+        let my = d.y;
 
-        const nxt = tryMove(ai.x, ai.y, mx, my, aiSize);
-
-        const stepDist = dist(ai.x, ai.y, nxt.x, nxt.y);
-        if(stepDist < 0.1) continue;
-
-        const toTarget = dist(nxt.x, nxt.y, tx, ty);
-        let score = aiIsTagger ? (-toTarget) : (toTarget);
-
-        const losBonus = hasLOS(nxt.x, nxt.y, tx, ty, aiSize) ? 25 : 0;
-        score += losBonus;
-
-        const edge = Math.min(nxt.x, nxt.y, (W-aiSize)-nxt.x, (H-aiSize)-nxt.y);
-        score += clamp01(edge / 80) * 20;
-
-        if(!aiIsTagger){
-          let open = 0;
-          for(let k=0;k<5;k++){
-            const ang = (k/5)*Math.PI*2;
-            const rx = nxt.x + Math.cos(ang)*50;
-            const ry = nxt.y + Math.sin(ang)*50;
-            if(hasLOS(nxt.x, nxt.y, rx, ry, aiSize)) open += 1;
-          }
-          score += open * 8;
+        // bias toward goal
+        if(aiIsTagger){
+          // chase but with some sideways approach so it doesn't just ram walls
+          const side = ((count + Math.floor(roundTicks/40)) % 2 === 0) ? 1 : -1;
+          mx = mx*0.55 + vx*0.85 + pxv*(0.35*side);
+          my = my*0.55 + vy*0.85 + pyv*(0.35*side);
+        } else {
+          // runner: flee (opposite of target vector)
+          mx = mx*0.55 - vx*0.95;
+          my = my*0.55 - vy*0.95;
         }
 
+        // add repulsions + jitter (prevents corner glue + obstacle hugging)
+        mx += wallPush.x + obsPush.x + jx;
+        my += wallPush.y + obsPush.y + jy;
+
+        // normalize
+        const len = Math.hypot(mx,my) || 1;
+        mx /= len; my /= len;
+
+        const step = tryMove(ai.x, ai.y, mx * aiSpeed, my * aiSpeed, aiSize);
+        const stepDist = dist(ai.x, ai.y, step.x, step.y);
+        if(stepDist < 0.1) continue;
+
+        // scoring
+        const dToOpp = dist(step.x, step.y, opp.x, opp.y);
+
+        // edge penalty (don’t camp borders)
+        const edge = Math.min(step.x, step.y, (W-aiSize)-step.x, (H-aiSize)-step.y);
+        const edgeScore = clamp01(edge / 110) * 25;
+
+        // obstacle closeness penalty (don’t glue to blocks)
+        const opush = obstacleRepel(step.x, step.y, aiSize);
+        const obstaclePenalty = (Math.hypot(opush.x, opush.y)) * 10;
+
+        // LOS behavior:
+        // - runner prefers to BREAK LOS (hide behind obstacles)
+        // - tagger prefers to KEEP LOS (pressure + cutoffs)
+        const los = hasLOS(step.x, step.y, opp.x, opp.y, aiSize);
+
+        let score = 0;
+
+        if(aiIsTagger){
+          score += (-dToOpp);                 // closer is better
+          score += (los ? 18 : -12);          // keep pressure
+          score += edgeScore;                 // stay off borders (harder to trap)
+          score -= obstaclePenalty;           // avoid sticking to obstacles
+
+          // extra: if very close to opponent, avoid being pinned to walls
+          if(dToOpp < 80){
+            const wpush = wallRepel(step.x, step.y, aiSize);
+            score -= Math.hypot(wpush.x, wpush.y) * 10;
+          }
+        } else {
+          score += (dToOpp);                  // farther is better
+          score += (!los ? 22 : -10);         // prefer hiding / breaking sight
+          score += edgeScore * 1.2;           // strongly avoid corners
+          score -= obstaclePenalty;
+
+          // prefer “open space”
+          let open = 0;
+          for(let k=0;k<6;k++){
+            const ang = (k/6)*Math.PI*2;
+            const rx = step.x + Math.cos(ang)*65;
+            const ry = step.y + Math.sin(ang)*65;
+            if(hasLOS(step.x, step.y, rx, ry, aiSize)) open++;
+          }
+          score += open * 6;
+        }
+
+        // small randomness (human imperfection)
         score += (Math.random() - 0.5) * (aiIsTagger ? 2.0 : 4.0);
 
         if(score > bestScore){
           bestScore = score;
-          best = nxt;
+          best = step;
         }
       }
 
@@ -476,10 +564,8 @@
       g.fillText(`Mode: ${mode === "1p" ? "1P vs AI" : (mode === "2p" ? "2P" : "Menu")}  |  Esc = Menu`, 14, H-12);
     }
 
-    // UI hooks
-    resetBtn.onclick = ()=>{
-      p1.score = 0; p2.score = 0;
-    };
+    // UI hooks (already set above, but safe)
+    resetBtn.onclick = ()=>{ p1.score = 0; p2.score = 0; };
     twoPBtn.onclick = ()=> startGame("2p");
     onePBtn.onclick = ()=> startGame("1p");
 
