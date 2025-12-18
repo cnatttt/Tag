@@ -7,7 +7,7 @@
   <style>
     html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
     .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
-    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline:none; }
+    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline:none; touch-action:none; }
 
     .ui{
       position: fixed; inset: 0;
@@ -86,11 +86,106 @@
       border: 1px solid rgba(255,212,0,.25);
       background: rgba(255,212,0,.06);
     }
+
+    /* =========================
+       MOBILE DUAL JOYSTICKS UI
+       ========================= */
+    .touchUI{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: none;
+      z-index: 5;
+    }
+    .joyWrap{
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      width: 42vw;
+      height: 42vw;
+      max-width: 220px;
+      max-height: 220px;
+      min-width: 140px;
+      min-height: 140px;
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .joyWrap.left{ left: max(14px, env(safe-area-inset-left)); }
+    .joyWrap.right{ right: max(14px, env(safe-area-inset-right)); }
+
+    .joyBase{
+      position:absolute; inset:0;
+      border-radius: 999px;
+      background: rgba(0,0,0,.25);
+      border: 2px solid rgba(255,212,0,.35);
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .joyKnob{
+      position:absolute;
+      left: 50%; top: 50%;
+      width: 36%;
+      height: 36%;
+      transform: translate(-50%,-50%);
+      border-radius: 999px;
+      background: rgba(0,180,255,.35);
+      border: 2px solid rgba(0,180,255,.65);
+      box-shadow: 0 10px 30px rgba(0,180,255,.18);
+    }
+    .joyLabel{
+      position:absolute;
+      top: -26px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 900;
+      font-size: 12px;
+      color: rgba(255,255,255,.9);
+      text-shadow: 0 2px 10px rgba(0,0,0,.5);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .touchHint{
+      position:absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(max(14px, env(safe-area-inset-bottom)) + 230px);
+      background: rgba(10,10,25,.75);
+      border: 1px solid rgba(255,212,0,.25);
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(255,255,255,.92);
+      pointer-events: none;
+      display: none;
+    }
+    @media (pointer: coarse) and (hover: none){
+      .touchUI{ display:block; }
+      .touchHint{ display:block; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <canvas id="c" width="800" height="800"></canvas>
+  </div>
+
+  <!-- Mobile on-screen controls -->
+  <div class="touchUI" id="touchUI" aria-hidden="true">
+    <div class="touchHint">Mobile controls: Left stick = P1 • Right stick = P2</div>
+
+    <div class="joyWrap left" id="joy1">
+      <div class="joyLabel">P1</div>
+      <div class="joyBase"></div>
+      <div class="joyKnob"></div>
+    </div>
+
+    <div class="joyWrap right" id="joy2">
+      <div class="joyLabel">P2</div>
+      <div class="joyBase"></div>
+      <div class="joyKnob"></div>
+    </div>
   </div>
 
   <div class="ui" id="menu">
@@ -264,6 +359,96 @@
     });
 
     // =========================
+    // MOBILE DUAL JOYSTICKS
+    // =========================
+    const isTouchDevice = matchMedia("(pointer: coarse) and (hover: none)").matches;
+
+    function makeJoystick(el){
+      const knob = el.querySelector(".joyKnob");
+      const state = {
+        active:false,
+        id:null,
+        dx:0, dy:0,   // -1..1
+        px:0, py:0,   // pixel offset for knob
+        cx:0, cy:0,
+        r:0
+      };
+
+      function recalc(){
+        const rect = el.getBoundingClientRect();
+        state.cx = rect.left + rect.width/2;
+        state.cy = rect.top + rect.height/2;
+        state.r = Math.min(rect.width, rect.height) * 0.38; // usable radius
+      }
+
+      function setKnob(px, py){
+        knob.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+      }
+
+      function setFromPoint(clientX, clientY){
+        const vx = clientX - state.cx;
+        const vy = clientY - state.cy;
+
+        const len = Math.hypot(vx, vy) || 1;
+        const clamped = Math.min(len, state.r);
+
+        const nx = (vx / len) * clamped;
+        const ny = (vy / len) * clamped;
+
+        state.px = nx;
+        state.py = ny;
+
+        // normalized for movement
+        state.dx = nx / state.r;
+        state.dy = ny / state.r;
+
+        setKnob(nx, ny);
+      }
+
+      function reset(){
+        state.active = false;
+        state.id = null;
+        state.dx = 0; state.dy = 0;
+        state.px = 0; state.py = 0;
+        setKnob(0,0);
+      }
+
+      el.addEventListener("pointerdown", (e)=>{
+        if(!isTouchDevice) return;
+        recalc();
+        state.active = true;
+        state.id = e.pointerId;
+        el.setPointerCapture(e.pointerId);
+        setFromPoint(e.clientX, e.clientY);
+        e.preventDefault();
+      }, {passive:false});
+
+      el.addEventListener("pointermove", (e)=>{
+        if(!state.active || e.pointerId !== state.id) return;
+        setFromPoint(e.clientX, e.clientY);
+        e.preventDefault();
+      }, {passive:false});
+
+      el.addEventListener("pointerup", (e)=>{
+        if(e.pointerId !== state.id) return;
+        reset();
+        e.preventDefault();
+      }, {passive:false});
+
+      el.addEventListener("pointercancel", (e)=>{
+        if(e.pointerId !== state.id) return;
+        reset();
+      });
+
+      window.addEventListener("resize", ()=>{ if(state.active) recalc(); });
+
+      return state;
+    }
+
+    const joy1 = makeJoystick(document.getElementById("joy1")); // P1
+    const joy2 = makeJoystick(document.getElementById("joy2")); // P2
+
+    // =========================
     // ONLY ONE MAP (OG map)
     // =========================
     const obs = [
@@ -314,28 +499,24 @@
     }
 
     // =========================
-    // GLOW WALL DRAW (NEW)
+    // GLOW WALL DRAW
     // =========================
     function glowRect(x, y, w, h){
       g.save();
 
-      // outer glow
       g.shadowBlur = 22;
       g.shadowColor = "rgba(0,180,255,0.55)";
       g.fillStyle = "rgba(0,180,255,0.35)";
       g.fillRect(x, y, w, h);
 
-      // bright core
       g.shadowBlur = 0;
       g.fillStyle = "rgb(0,180,255)";
       g.fillRect(x+1, y+1, w-2, h-2);
 
-      // white outline
       g.strokeStyle = "rgba(255,255,255,0.9)";
       g.lineWidth = 2;
       g.strokeRect(x+0.5, y+0.5, w-1, h-1);
 
-      // yellow accent edge (matches your theme)
       g.strokeStyle = "rgba(255,212,0,0.5)";
       g.lineWidth = 1;
       g.strokeRect(x+1.5, y+1.5, w-3, h-3);
@@ -447,7 +628,6 @@
       lrP1Time = 0;
       lrP2Time = 0;
 
-      // Phase 1: P1 runner, P2 tagger
       forceRoles(false);
       resetRound(false);
     }
@@ -473,7 +653,7 @@
     }
 
     function startGame(){
-      startMusic(); // 8-bit music
+      startMusic();
       running = true;
       menu.style.display = "none";
 
@@ -509,25 +689,54 @@
       const p1Speed = p1Tag ? TAG_SPEED : SPEED;
       const p2Speed = p1Tag ? SPEED : TAG_SPEED;
 
-      // P1 (WASD)
+      // keyboard input
       let p1dx = 0, p1dy = 0;
       if(keys.has("w")) p1dy -= p1Speed;
       if(keys.has("s")) p1dy += p1Speed;
       if(keys.has("a")) p1dx -= p1Speed;
       if(keys.has("d")) p1dx += p1Speed;
-      slideMove(p1, p1dx, p1dy, p1Size);
 
-      // P2 (Arrows)
       let p2dx = 0, p2dy = 0;
       if(keys.has("arrowup")) p2dy -= p2Speed;
       if(keys.has("arrowdown")) p2dy += p2Speed;
       if(keys.has("arrowleft")) p2dx -= p2Speed;
       if(keys.has("arrowright")) p2dx += p2Speed;
-      slideMove(p2, p2dx, p2dy, p2Size);
+
+      // touch joystick input (adds to keyboard)
+      // deadzone so tiny touches don't drift
+      const DZ = 0.18;
+      if(isTouchDevice){
+        if(joy1.active){
+          const ax = Math.abs(joy1.dx) < DZ ? 0 : joy1.dx;
+          const ay = Math.abs(joy1.dy) < DZ ? 0 : joy1.dy;
+          p1dx += ax * p1Speed;
+          p1dy += ay * p1Speed;
+        }
+        if(joy2.active){
+          const ax = Math.abs(joy2.dx) < DZ ? 0 : joy2.dx;
+          const ay = Math.abs(joy2.dy) < DZ ? 0 : joy2.dy;
+          p2dx += ax * p2Speed;
+          p2dy += ay * p2Speed;
+        }
+      }
+
+      // clamp so diagonal isn't crazy fast
+      function clampVec(dx, dy, max){
+        const len = Math.hypot(dx, dy);
+        if(len > max && len > 0.0001){
+          const s = max / len;
+          return {dx: dx*s, dy: dy*s};
+        }
+        return {dx, dy};
+      }
+      const p1v = clampVec(p1dx, p1dy, p1Speed);
+      const p2v = clampVec(p2dx, p2dy, p2Speed);
+
+      slideMove(p1, p1v.dx, p1v.dy, p1Size);
+      slideMove(p2, p2v.dx, p2v.dy, p2Size);
 
       if(roundTicks > 0) roundTicks--;
 
-      // tag check with reach buff
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
       let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
 
@@ -561,7 +770,6 @@
           resetRound(true);
         }
       } else {
-        // Longest Run: Phase 1 P1 runner, Phase 2 P2 runner
         const p1Runner = !p1Tag;
         const p2Runner = p1Tag;
 
@@ -574,7 +782,6 @@
 
           if(lrPhase === 1){
             lrPhase = 2;
-            // Phase 2: P2 runner, P1 tagger
             forceRoles(true);
             resetRound(false);
           } else if(lrPhase === 2){
@@ -597,17 +804,12 @@
       g.clearRect(0,0,W,H);
       g.setTransform(1,0,0,1,sx,sy);
 
-      // grid
       g.strokeStyle = "rgb(25,25,25)";
       for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
       for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
 
-      // obstacles (GLOW)
-      for(const r of obs){
-        glowRect(r.x, r.y, r.w, r.h);
-      }
+      for(const r of obs) glowRect(r.x, r.y, r.w, r.h);
 
-      // players
       const p1Tag = isP1Tagger();
       const p1Size = sizeForP1();
       const p2Size = sizeForP2();
@@ -618,11 +820,9 @@
       g.fillStyle = p1Tag ? "white" : "red";
       g.fillRect(p2.x, p2.y, p2Size, p2Size);
 
-      // border
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // text
       const secondsLeft = Math.ceil(roundTicks / 50);
 
       g.fillStyle = "white";
@@ -653,7 +853,6 @@
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
     }
 
-    // start menu + loop
     openMenu();
     requestAnimationFrame(step);
   </script>
