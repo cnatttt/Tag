@@ -6,8 +6,30 @@
   <title>2PlayerTag</title>
   <style>
     html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
-    .wrap { height: 100%; display:flex; align-items:center; justify-content:center; }
-    canvas { background:#0d0782; border:2px solid #ffd400; image-rendering: pixelated; outline:none; touch-action:none; }
+    .wrap {
+      height: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden; /* NEW: stops scrollbars/clipping on mobile */
+    }
+
+    /* NEW: canvas scales to fit screen (still renders at 800x800 internally) */
+    canvas{
+      background:#0d0782;
+      border:2px solid #ffd400;
+      image-rendering: pixelated;
+      outline:none;
+      touch-action:none;
+
+      width: min(100vw, 100vh);
+      height: min(100vw, 100vh);
+      display:block;
+    }
+    :fullscreen canvas{
+      width: min(100vw, 100vh);
+      height: min(100vw, 100vh);
+    }
 
     .ui{
       position: fixed; inset: 0;
@@ -365,7 +387,6 @@
     // SOUND (beeps + 8-bit background music)
     // =========================
     let volume = 0.70;
-
     const audio = { ctx:null, musicMaster:null, musicRunning:false, step:0, timer:null };
 
     function ensureAudio(){
@@ -389,35 +410,27 @@
       const t = audio.ctx.currentTime;
       const o = audio.ctx.createOscillator();
       const gain = audio.ctx.createGain();
-
       o.type = "square";
       o.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(Math.max(0.0001, volume * 0.08), t);
-
       o.connect(gain);
       gain.connect(audio.ctx.destination);
-
       o.start(t);
       o.stop(t + dur);
     }
 
     function playMusicNote(freq, dur, amp=0.22){
       if(!audio.musicRunning || !audio.ctx || !audio.musicMaster) return;
-
       const t = audio.ctx.currentTime;
       const o = audio.ctx.createOscillator();
       const eg = audio.ctx.createGain();
-
       o.type = "square";
       o.frequency.setValueAtTime(freq, t);
-
       eg.gain.setValueAtTime(0.0001, t);
       eg.gain.linearRampToValueAtTime(amp, t + 0.01);
       eg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
       o.connect(eg);
       eg.connect(audio.musicMaster);
-
       o.start(t);
       o.stop(t + dur + 0.02);
     }
@@ -436,14 +449,11 @@
       const stepMs = 120;
       audio.timer = setInterval(() => {
         if(audio.musicMaster) audio.musicMaster.gain.value = Math.max(0.0001, volume * 0.06);
-
         const i = audio.step % lead.length;
         if((audio.step % 2) === 0) playMusicNote(hzFromMidi(bass[i]), 0.14, 0.18);
         playMusicNote(hzFromMidi(lead[i]), 0.10, 0.14);
-
         const s = sparkle[audio.step % sparkle.length];
         if(s != null && (audio.step % 4 === 0)) playMusicNote(hzFromMidi(s), 0.06, 0.08);
-
         audio.step++;
       }, stepMs);
     }
@@ -482,7 +492,6 @@
     // MOBILE ROTATE MESSAGE
     // =========================
     const isTouchDevice = matchMedia("(pointer: coarse) and (hover: none)").matches;
-
     function updateRotateOverlay(){
       if(!isTouchDevice){ rotateMsg.style.display = "none"; return; }
       const portrait = window.innerHeight > window.innerWidth;
@@ -497,7 +506,7 @@
     // =========================
     function makeJoystick(el){
       const knob = el.querySelector(".joyKnob");
-      const state = { active:false, id:null, dx:0, dy:0, px:0, py:0, cx:0, cy:0, r:0 };
+      const state = { active:false, id:null, dx:0, dy:0, cx:0, cy:0, r:0 };
 
       function recalc(){
         const rect = el.getBoundingClientRect();
@@ -515,7 +524,6 @@
         const clamped = Math.min(len, state.r);
         const nx = (vx / len) * clamped;
         const ny = (vy / len) * clamped;
-        state.px = nx; state.py = ny;
         state.dx = nx / state.r;
         state.dy = ny / state.r;
         setKnob(nx, ny);
@@ -523,7 +531,6 @@
       function reset(){
         state.active = false; state.id = null;
         state.dx = 0; state.dy = 0;
-        state.px = 0; state.py = 0;
         setKnob(0,0);
       }
 
@@ -575,9 +582,6 @@
       {x:650,y:280,w:60,h:20},{x:650,y:500,w:60,h:20},
     ];
 
-    // =========================
-    // COLLISION
-    // =========================
     function rectsIntersect(a,b){
       return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
@@ -606,9 +610,6 @@
       p.x = nxt.x; p.y = nxt.y;
     }
 
-    // =========================
-    // GLOW WALL DRAW
-    // =========================
     function glowRect(x, y, w, h){
       g.save();
       g.shadowBlur = 22;
@@ -640,30 +641,27 @@
     const p2 = { x:740, y:740, score:0 };
 
     let count = 0;
-
     const ROUND_TICKS = 1000; // 20s @ 50fps
     let roundTicks = ROUND_TICKS;
 
     const SPEED = 8;
     const TAG_SPEED = SPEED + 1;
     const TAG_REACH = 4;
-
     const WIN_POINTS = 10;
 
     let running = false;
     let shakeTicks = 0;
 
-    // modes
     let mode = "classic";
     let lrPhase = 0;
     let lrP1Time = 0;
     let lrP2Time = 0;
 
     // countdown + hit feedback
-    let countdownTicks = 0;     // >0 means freeze + show countdown
-    let countdownBeepGate = -1; // so beeps happen once per number
-    let flashAlpha = 0;         // screen flash strength
-    let popTicks = 0;           // popup timer
+    let countdownTicks = 0;
+    let countdownBeepGate = -1;
+    let flashAlpha = 0;
+    let popTicks = 0;
     let popScale = 1;
 
     const keys = new Set();
@@ -703,19 +701,14 @@
       running = false;
       menu.style.display = "flex";
       loadTip();
-
       lrPhase = 0; lrP1Time = 0; lrP2Time = 0;
-
-      // hide FX text when menu open
       countText.style.display = "none";
       popText.style.display = "none";
-
       beep(440, 0.03); setTimeout(()=>beep(660, 0.03), 70);
     }
 
     function startCountdown(){
-      // 3..2..1..GO
-      countdownTicks = 3*50 + 25; // ~3.5s total
+      countdownTicks = 3*50 + 25;
       countdownBeepGate = -1;
       countText.style.display = "block";
     }
@@ -738,11 +731,9 @@
     function startLongest(){
       mode = "longest";
       p1.score = 0; p2.score = 0;
-
       lrPhase = 1;
       lrP1Time = 0;
       lrP2Time = 0;
-
       forceRoles(false);
       resetRound(false);
     }
@@ -761,7 +752,6 @@
       if(lrP1Time > lrP2Time) msg = `P1 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
       else if(lrP2Time > lrP1Time) msg = `P2 WINS!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
       else msg = `TIE!  P1: ${p1Sec}s  |  P2: ${p2Sec}s`;
-
       openMenu();
       tipBox.textContent = "🏁 Longest Run Results: " + msg;
       beep(660, 0.05); setTimeout(()=>beep(880, 0.05), 70);
@@ -771,14 +761,11 @@
       startMusic();
       running = true;
       menu.style.display = "none";
-
       if(modeSel.value === "classic") startClassic();
       else startLongest();
-
       beep(880, 0.04);
-      updateRotateOverlay(); // refresh rotate message state on start
+      updateRotateOverlay();
     }
-
     playBtn.onclick = startGame;
 
     resetScoreBtn.onclick = ()=>{
@@ -803,18 +790,14 @@
         countText.style.display = "none";
         return;
       }
-
-      // numbers: 3,2,1 then GO
       const num = Math.ceil(countdownTicks / 50);
       let label = "";
       if(num >= 3) label = "3";
       else if(num === 2) label = "2";
       else if(num === 1) label = "1";
       else label = "GO!";
-
       countText.textContent = label;
 
-      // beep once per number (3,2,1,GO)
       const gate = (label === "GO!") ? 0 : Number(label);
       if(gate !== countdownBeepGate){
         countdownBeepGate = gate;
@@ -835,7 +818,6 @@
     function update(){
       if(!running) return;
 
-      // decay flash/popup
       flashAlpha = Math.max(0, flashAlpha - 0.04);
       if(popTicks > 0){
         popTicks--;
@@ -846,11 +828,10 @@
         popText.style.display = "none";
       }
 
-      // countdown freeze
       if(countdownTicks > 0){
         countdownTicks--;
         updateCountdownUI();
-        return; // freeze everything until GO finishes
+        return;
       }
 
       const p1Tag = isP1Tagger();
@@ -860,7 +841,6 @@
       const p1Speed = p1Tag ? TAG_SPEED : SPEED;
       const p2Speed = p1Tag ? SPEED : TAG_SPEED;
 
-      // keyboard input
       let p1dx = 0, p1dy = 0;
       if(keys.has("w")) p1dy -= p1Speed;
       if(keys.has("s")) p1dy += p1Speed;
@@ -873,7 +853,6 @@
       if(keys.has("arrowleft")) p2dx -= p2Speed;
       if(keys.has("arrowright")) p2dx += p2Speed;
 
-      // touch joystick input
       const DZ = 0.18;
       if(isTouchDevice){
         if(joy1.active){
@@ -898,7 +877,6 @@
 
       if(roundTicks > 0) roundTicks--;
 
-      // tag check
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
       let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
 
@@ -970,15 +948,12 @@
       g.clearRect(0,0,W,H);
       g.setTransform(1,0,0,1,sx,sy);
 
-      // grid
       g.strokeStyle = "rgb(25,25,25)";
       for(let x=0;x<W;x+=40){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
       for(let y=0;y<H;y+=40){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
 
-      // obstacles
       for(const r of obs) glowRect(r.x, r.y, r.w, r.h);
 
-      // players
       const p1Tag = isP1Tagger();
       const p1Size = sizeForP1();
       const p2Size = sizeForP2();
@@ -989,11 +964,9 @@
       g.fillStyle = p1Tag ? "white" : "red";
       g.fillRect(p2.x, p2.y, p2Size, p2Size);
 
-      // border
       g.strokeStyle = "#ffd400";
       g.strokeRect(0.5,0.5,W-1,H-1);
 
-      // text
       const secondsLeft = Math.ceil(roundTicks / 50);
 
       g.fillStyle = "white";
@@ -1023,7 +996,6 @@
       g.font = "12px system-ui, Arial";
       g.fillText(`2PlayerTag  |  Dev: Mcant  |  Esc = Menu`, 14, H-12);
 
-      // screen flash overlay (drawn on canvas so it matches shake)
       if(flashAlpha > 0){
         g.save();
         g.setTransform(1,0,0,1,0,0);
@@ -1033,7 +1005,6 @@
       }
     }
 
-    // start menu + loop
     openMenu();
     requestAnimationFrame(step);
   </script>
