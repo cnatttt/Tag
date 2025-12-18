@@ -1,22 +1,21 @@
-<title>2 Player Tag – Free Online Browser Game</title>
-
-<meta name="description" content="2 Player Tag is a fast-paced online browser game where two players compete as runner and tagger. Play free in your browser with keyboard controls.">
-
-<meta name="keywords" content="2 player tag, tag game, two player game, browser tag game, local multiplayer game, html5 game">
-
-<meta name="author" content="Mcant">
-
-<meta property="og:title" content="2 Player Tag – Free Online Game">
-<meta property="og:description" content="Play 2 Player Tag online. First to 10 wins in this fast-paced browser tag game.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://yourname.github.io/2playertag/">
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+
+  <title>2 Player Tag – Free Online Browser Game</title>
+
+  <meta name="description" content="2 Player Tag is a fast-paced online browser game where two players compete as runner and tagger. Play free in your browser with keyboard controls.">
+  <meta name="keywords" content="2 player tag, tag game, two player game, browser tag game, local multiplayer game, html5 game">
+  <meta name="author" content="Mcant">
+
+  <meta property="og:title" content="2 Player Tag – Free Online Game">
+  <meta property="og:description" content="Play 2 Player Tag online. First to 10 wins in this fast-paced browser tag game.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://yourname.github.io/2playertag/">
+
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>2PlayerTag</title>
+
   <style>
     html, body { height: 100%; margin: 0; background:#0d0782; font-family: system-ui, Arial; }
     .wrap {
@@ -24,10 +23,9 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      overflow:hidden; /* NEW: stops scrollbars/clipping on mobile */
+      overflow:hidden;
     }
 
-    /* NEW: canvas scales to fit screen (still renders at 800x800 internally) */
     canvas{
       background:#0d0782;
       border:2px solid #ffd400;
@@ -123,9 +121,6 @@
       background: rgba(255,212,0,.06);
     }
 
-    /* =========================
-       MOBILE DUAL JOYSTICKS UI
-       ========================= */
     .touchUI{
       position: fixed;
       inset: 0;
@@ -133,21 +128,20 @@
       display: none;
       z-index: 5;
     }
-   .joyWrap{
-  position: absolute;
-  bottom: max(10px, env(safe-area-inset-bottom));
-  width: 28vw;          /* was 42vw */
-  height: 28vw;         /* was 42vw */
-  max-width: 160px;     /* was 220px */
-  max-height: 160px;    /* was 220px */
-  min-width: 100px;     /* was 140px */
-  min-height: 100px;    /* was 140px */
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
+    .joyWrap{
+      position: absolute;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      width: 28vw;
+      height: 28vw;
+      max-width: 160px;
+      max-height: 160px;
+      min-width: 100px;
+      min-height: 100px;
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
     .joyWrap.left{ left: max(14px, env(safe-area-inset-left)); }
     .joyWrap.right{ right: max(14px, env(safe-area-inset-right)); }
 
@@ -202,9 +196,6 @@
       .touchHint{ display:block; }
     }
 
-    /* =========================
-       OVERLAYS (countdown / flash / rotate)
-       ========================= */
     .overlayFX{
       position: fixed;
       inset: 0;
@@ -286,12 +277,12 @@
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <canvas id="c" width="800" height="800"></canvas>
   </div>
 
-  <!-- Mobile on-screen controls -->
   <div class="touchUI" id="touchUI" aria-hidden="true">
     <div class="touchHint">Mobile controls: Left stick = P1 • Right stick = P2</div>
 
@@ -308,13 +299,11 @@
     </div>
   </div>
 
-  <!-- FX overlays -->
   <div class="overlayFX" id="fx">
     <div class="countText" id="countText">3</div>
     <div class="popText" id="popText">TAG!</div>
   </div>
 
-  <!-- Rotate overlay -->
   <div class="rotateMsg" id="rotateMsg">
     <div class="rotateCard">
       <div class="rotateTitle">Rotate your device</div>
@@ -604,24 +593,59 @@
       return false;
     }
 
+    // =========================
+    // MOVEMENT (WITH WALL BOUNCES)
+    // =========================
     function tryMove(x, y, dx, dy, size){
       let nx = x, ny = y;
+      let hitWall = false;
 
+      // X move + obstacle slide
       nx += dx;
-      let testX = {x:nx, y:y, w:size, h:size};
+      const testX = {x:nx, y:y, w:size, h:size};
       if(rectIntersectsAny(testX)) nx = x;
 
+      // Wall bounce X
+      if(nx < 0){
+        hitWall = true;
+        nx = 0 + WALL_PUSH;
+        nx += (-dx) * WALL_BOUNCE;
+      } else if(nx > W - size){
+        hitWall = true;
+        nx = (W - size) - WALL_PUSH;
+        nx += (-dx) * WALL_BOUNCE;
+      }
+
+      // Y move + obstacle slide
       ny += dy;
-      let testY = {x:nx, y:ny, w:size, h:size};
+      const testY = {x:nx, y:ny, w:size, h:size};
       if(rectIntersectsAny(testY)) ny = y;
 
+      // Wall bounce Y
+      if(ny < 0){
+        hitWall = true;
+        ny = 0 + WALL_PUSH;
+        ny += (-dy) * WALL_BOUNCE;
+      } else if(ny > H - size){
+        hitWall = true;
+        ny = (H - size) - WALL_PUSH;
+        ny += (-dy) * WALL_BOUNCE;
+      }
+
+      // Safety clamp
       nx = Math.max(0, Math.min(W - size, nx));
       ny = Math.max(0, Math.min(H - size, ny));
-      return {x:nx, y:ny};
+
+      return {x:nx, y:ny, hitWall};
     }
+
     function slideMove(p, dx, dy, size){
       const nxt = tryMove(p.x, p.y, dx, dy, size);
-      p.x = nxt.x; p.y = nxt.y;
+      p.x = nxt.x;
+      p.y = nxt.y;
+
+      // optional: tiny wall tick sound (disabled by default)
+      // if(nxt.hitWall) beep(300, 0.01);
     }
 
     function glowRect(x, y, w, h){
@@ -660,6 +684,11 @@
 
     const SPEED = 8;
     const TAG_SPEED = SPEED + 1;
+
+    // WALL BOUNCE SETTINGS (added)
+    const WALL_BOUNCE = 0.85; // 1.0 = perfect bounce
+    const WALL_PUSH   = 0.001; // prevents sticking on edge
+
     const TAG_REACH = 4;
     const WIN_POINTS = 10;
 
@@ -671,7 +700,6 @@
     let lrP1Time = 0;
     let lrP2Time = 0;
 
-    // countdown + hit feedback
     let countdownTicks = 0;
     let countdownBeepGate = -1;
     let flashAlpha = 0;
@@ -894,6 +922,7 @@
       let hb1 = {x:p1.x, y:p1.y, w:p1Size, h:p1Size};
       let hb2 = {x:p2.x, y:p2.y, w:p2Size, h:p2Size};
 
+      const TAG_REACH = 4;
       if(p1Tag){
         hb1 = {x:hb1.x - TAG_REACH, y:hb1.y - TAG_REACH, w:hb1.w + TAG_REACH*2, h:hb1.h + TAG_REACH*2};
       } else {
